@@ -48,7 +48,7 @@ def create_model():
         ReLU(),
         Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
         ReLU(),
-        Conv2d(64, 1, kernel_size=(1, 1), stride=(1, 1), padding=(1, 1)),
+        Conv2d(64, 1, kernel_size=(1, 1), stride=(1, 1), padding=0),
         Sigmoid(),
     ]
 
