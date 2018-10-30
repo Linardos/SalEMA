@@ -8,6 +8,7 @@ from torch.nn.modules.conv import Conv2d
 from torch.nn.modules.activation import Sigmoid, ReLU
 from clstm import ConvLSTM
 
+seed = 3
 
 class SalGAN(nn.Module):
     def  __init__(self):
@@ -132,8 +133,10 @@ class SalGANplus(nn.Module):
         # Initialize weights of ConvLSTM
 
         for param in self.Gates.parameters():
+            torch.manual_seed(seed)
             nn.init.normal_(param)
         for param in self.conv1x1.parameters():
+            torch.manual_seed(seed)
             nn.init.normal_(param)
 
 
@@ -265,8 +268,7 @@ class SalGANmid(nn.Module):
 
 
         for param in self.Gates.parameters():
-            nn.init.normal_(param)
-        for param in self.conv1x1.parameters():
+            torch.manual_seed(seed)
             nn.init.normal_(param)
 
 

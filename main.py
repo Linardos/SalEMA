@@ -95,9 +95,9 @@ def main(params = params):
     # Using same kernel size as they do in the DHF1K paper
     # Amaia uses default hidden size 128
     # input size is 1 since we have grayscale images
-    model = SalGAN()
+    model = SalGANplus()
 
-    # Load the weights of SalGAN generator.
+    # Load the weights of salgan generator.
     # By setting strict to False we allow the model to load only the matching layers' weights
     model.load_state_dict(torch.load(PATH_PYTORCH_WEIGHTS), strict=False)
 
@@ -121,6 +121,9 @@ def main(params = params):
     if GPU >= 2:
         model = nn.DataParallel(model).cuda()
         cudnn.benchmark = True #https://discuss.pytorch.org/t/what-does-torch-backends-cudnn-benchmark-do/5936
+    if GPU >= 1:
+        model.cuda()
+        criterion = criterion.cuda()
 
     optimizer = torch.optim.SGD(model.parameters(), learning_rate, momentum=momentum, weight_decay=weight_decay)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.1, patience=4, min_lr=0.0000001)
@@ -129,9 +132,6 @@ def main(params = params):
     # =================================================
     # ================== Training =====================
 
-    if dtype == torch.cuda.ByteTensor:
-        model.cuda()
-        criterion = criterion.cuda()
 
     train_losses = []
     val_losses = []
@@ -162,7 +162,7 @@ def main(params = params):
         'epoch': epoch + 1,
         'state_dict': model.cpu().state_dict(),
         'optimizer' : optimizer.state_dict()
-        }, 'SalGAN.pt')
+        }, 'SalGANplus.pt')
     """
     hyperparameters = {
         'momentum' : momentum,
@@ -213,8 +213,9 @@ def train(train_loader, model, criterion, optimizer, epoch):
             # [video_batch, clip_length, channels, height, width]
             # After transpose:
             # [clip_length, video_batch, channels, height, width]
-            clip = Variable(clip.type(dtype).t())
-            gtruths = Variable(gtruths.type(dtype).t())
+
+            clip = Variable(clip.type(dtype).transpose(0,1))
+            gtruths = Variable(gtruths.type(dtype).transpose(0,1))
 
             #print(clip.size()) #works! torch.Size([5, 1, 1, 360, 640])
 
@@ -287,8 +288,8 @@ def validate(val_loader, model, criterion, epoch):
         state = None # Initially no hidden state
         for j, (clip, gtruths) in enumerate(video):
 
-            clip = Variable(clip.type(dtype).t(), requires_grad=False)
-            gtruths = Variable(gtruths.type(dtype).t(), requires_grad=False)
+            clip = Variable(clip.type(dtype).transpose(0,1), requires_grad=False)
+            gtruths = Variable(gtruths.type(dtype).transpose(0,1), requires_grad=False)
 
             for idx in range(clip.size()[0]):
                 #print(clip[idx].size()) needs unsqueeze
