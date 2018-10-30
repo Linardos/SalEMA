@@ -8,7 +8,6 @@ from torch.nn.modules.conv import Conv2d
 from torch.nn.modules.activation import Sigmoid, ReLU
 from clstm import ConvLSTM
 
-seed = 3
 
 class SalGAN(nn.Module):
     def  __init__(self):
@@ -72,7 +71,7 @@ class SalGAN(nn.Module):
 
 class SalGANplus(nn.Module):
 
-    def __init__(self, use_gpu=True):
+    def __init__(self, seed_init, use_gpu=True):
         super(SalGANplus,self).__init__()
 
         self.use_gpu = use_gpu
@@ -133,10 +132,10 @@ class SalGANplus(nn.Module):
         # Initialize weights of ConvLSTM
 
         for param in self.Gates.parameters():
-            torch.manual_seed(seed)
+            torch.manual_seed(seed_init)
             nn.init.normal_(param)
         for param in self.conv1x1.parameters():
-            torch.manual_seed(seed)
+            torch.manual_seed(seed_init)
             nn.init.normal_(param)
 
 
@@ -205,7 +204,7 @@ class SalGANplus(nn.Module):
 
 class SalGANmid(nn.Module):
 
-    def __init__(self, use_gpu=True):
+    def __init__(self, seed_init, use_gpu=True):
         super(SalGANmid,self).__init__()
 
         self.use_gpu = use_gpu
@@ -268,7 +267,7 @@ class SalGANmid(nn.Module):
 
 
         for param in self.Gates.parameters():
-            torch.manual_seed(seed)
+            torch.manual_seed(seed_init)
             nn.init.normal_(param)
 
 

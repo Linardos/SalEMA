@@ -9,10 +9,10 @@ import cv2
 # parameters for demo inference=================================================
 PATH_PYTORCH_WEIGHTS = 'model_weights/gen_model.pt'
 PATH_SAMPLE_IMAGES = 'sample_images'
-PATH_SAMPLE_SALIENCY = 'sample_saliency_2'
+PATH_SAMPLE_SALIENCY = 'seed_test_sample_saliency'
 USE_GPU=False
 
-def main():
+def main(seed_init):
     """
     Runs pytorch-SalGAN on a sample images
 
@@ -29,7 +29,7 @@ def main():
     exit()
     """
 
-    model = SalGANplus(use_gpu=USE_GPU)
+    model = SalGANplus(seed_init=seed_init, use_gpu=USE_GPU)
     #model = salgan_generator.create_model()
     model.salgan.load_state_dict(torch.load(PATH_PYTORCH_WEIGHTS), strict=False)
     model.eval()
@@ -60,10 +60,13 @@ def main():
         # postprocess
         saliency = postprocess_prediction(prediction, image_size)
 
-        # save saliency
-        cv2.imwrite(os.path.join(PATH_SAMPLE_SALIENCY, name), saliency)
+        # save saliency, name depends on seed
+        cv2.imwrite(os.path.join(PATH_SAMPLE_SALIENCY, "{}".format(seed)+name), saliency)
         print("Processed image {}".format(i))
 
 
 if __name__ == '__main__':
-    main()
+
+    for seed in range(5,100):
+        main(seed)
+        print("Done with seed {}".format(seed))
