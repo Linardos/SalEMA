@@ -13,7 +13,7 @@ plt.plot(to_plot['epoch_ticks'], to_plot['val_losses'], label = "Validation Loss
 plt.legend()
 plt.xlabel("Epoch")
 plt.ylabel("Loss")
-plt.xticks(to_plot['epoch_ticks'])
+plt.xticks(to_plot['epoch_  ticks'])
 
 plt.tight_layout()
 

@@ -3,11 +3,22 @@ from torchvision.models import vgg16
 from torch import nn
 from torch.nn.functional import interpolate #Upsampling is supposedly deprecated, replace with interpolate, eventually, maybe
 from torch.autograd import Variable
-from torch.nn.modules.upsampling import Upsample
 from torch.nn.modules.conv import Conv2d
 from torch.nn.modules.activation import Sigmoid, ReLU
 from clstm import ConvLSTM
 
+
+class Interpolate(nn.Module):
+    # Upsampling has been deprecated for some reason, this workaround allows us to still use the function within sequential.https://discuss.pytorch.org/t/using-nn-function-interpolate-inside-nn-sequential/23588
+    def __init__(self, scale_factor, mode):
+        super(Interpolate, self).__init__()
+        self.interp = interpolate
+        self.scale_factor = scale_factor
+        self.mode = mode
+
+    def forward(self, x):
+        x = self.interp(x, scale_factor=self.scale_factor, mode=self.mode)
+        return x
 
 class SalGAN(nn.Module):
     def  __init__(self):
@@ -26,7 +37,7 @@ class SalGAN(nn.Module):
             ReLU(),
             Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
-            Upsample(scale_factor=2, mode='nearest'),
+            Interpolate(scale_factor=2, mode='nearest'),
 
             Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
@@ -34,7 +45,7 @@ class SalGAN(nn.Module):
             ReLU(),
             Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
-            Upsample(scale_factor=2, mode='nearest'),
+            Interpolate(scale_factor=2, mode='nearest'),
 
             Conv2d(512, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
@@ -42,13 +53,13 @@ class SalGAN(nn.Module):
             ReLU(),
             Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
-            Upsample(scale_factor=2, mode='nearest'),
+            Interpolate(scale_factor=2, mode='nearest'),
 
             Conv2d(256, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
             Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
-            Upsample(scale_factor=2, mode='nearest'),
+            Interpolate(scale_factor=2, mode='nearest'),
 
             Conv2d(128, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
@@ -90,7 +101,7 @@ class SalGANplus(nn.Module):
             ReLU(),
             Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
-            Upsample(scale_factor=2, mode='nearest'),
+            Interpolate(scale_factor=2, mode='nearest'),
 
             Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
@@ -98,7 +109,7 @@ class SalGANplus(nn.Module):
             ReLU(),
             Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
-            Upsample(scale_factor=2, mode='nearest'),
+            Interpolate(scale_factor=2, mode='nearest'),
 
             Conv2d(512, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
@@ -106,13 +117,13 @@ class SalGANplus(nn.Module):
             ReLU(),
             Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
-            Upsample(scale_factor=2, mode='nearest'),
+            Interpolate(scale_factor=2, mode='nearest'),
 
             Conv2d(256, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
             Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
-            Upsample(scale_factor=2, mode='nearest'),
+            Interpolate(scale_factor=2, mode='nearest'),
 
             #During Upsampling operation we may end up losing 1 dimension if it was an odd number before
 
@@ -127,7 +138,6 @@ class SalGANplus(nn.Module):
         self.hidden_size = 128
         self.Gates = nn.Conv2d(in_channels = self.input_size + self.hidden_size, out_channels = 4 * self.hidden_size, kernel_size = (3, 3), padding = 1) #padding 1 to preserve HxW dimensions
         self.conv1x1 = nn.Conv2d(in_channels = self.hidden_size, out_channels = 1, kernel_size = 1)
-        self.sigmoid = Sigmoid()
 
         # Initialize weights of ConvLSTM
 
@@ -195,7 +205,7 @@ class SalGANplus(nn.Module):
         hidden = out_gate * torch.tanh(cell)
 
         state = [hidden,cell]
-        saliency_map = self.sigmoid(self.conv1x1(cell))
+        saliency_map = self.conv1x1(cell)
 
         return (hidden, cell), saliency_map
 
@@ -222,7 +232,7 @@ class SalGANmid(nn.Module):
             ReLU(),
             Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
-            Upsample(scale_factor=2, mode='nearest'),
+            Interpolate(scale_factor=2, mode='nearest'),
 
             Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
@@ -230,7 +240,7 @@ class SalGANmid(nn.Module):
             ReLU(),
             Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
-            Upsample(scale_factor=2, mode='nearest'),
+            Interpolate(scale_factor=2, mode='nearest'),
 
             Conv2d(512, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
@@ -238,13 +248,13 @@ class SalGANmid(nn.Module):
             ReLU(),
             Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
-            Upsample(scale_factor=2, mode='nearest'),
+            Interpolate(scale_factor=2, mode='nearest'),
 
             Conv2d(256, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
             Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
-            Upsample(scale_factor=2, mode='nearest'),
+            Interpolate(scale_factor=2, mode='nearest'),
 
             Conv2d(128, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),

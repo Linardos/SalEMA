@@ -9,7 +9,8 @@ import cv2
 # parameters for demo inference=================================================
 PATH_PYTORCH_WEIGHTS = 'model_weights/gen_model.pt'
 PATH_SAMPLE_IMAGES = 'sample_images'
-PATH_SAMPLE_SALIENCY = 'seed_test_sample_saliency'
+PATH_SAMPLE_SALIENCY = 'sample_saliency'
+CONV_LSTM_WEIGHTS = './SalConvLSTM.pt'
 USE_GPU=False
 
 def main(seed_init):
@@ -32,6 +33,10 @@ def main(seed_init):
     model = SalGANplus(seed_init=seed_init, use_gpu=USE_GPU)
     #model = salgan_generator.create_model()
     model.salgan.load_state_dict(torch.load(PATH_PYTORCH_WEIGHTS), strict=False)
+    checkpoint = load_weights(model, CONV_LSTM_WEIGHTS)
+    model.Gates.load_state_dict(checkpoint, strict=False)
+    model.conv1x1.load_state_dict(checkpoint, strict=False)
+    print("Pre-trained model loaded succesfully")
     model.eval()
 
     # if GPU is enabled
@@ -51,22 +56,38 @@ def main(seed_init):
 
         if type(prediction) is tuple:
             _, prediction = prediction
+
         # get result to cpu and squeeze dimensions
         if USE_GPU:
             prediction = prediction.squeeze().data.cpu().numpy()
         else:
             prediction = prediction.squeeze().data.numpy()
 
+        """
         # postprocess
         saliency = postprocess_prediction(prediction, image_size)
+        """
 
         # save saliency, name depends on seed
-        cv2.imwrite(os.path.join(PATH_SAMPLE_SALIENCY, "{}".format(seed)+name), saliency)
+        cv2.imwrite(os.path.join(PATH_SAMPLE_SALIENCY, "{}".format(seed)+name), prediction)
         print("Processed image {}".format(i))
+
+def load_weights(model, pretrained_model, device='cpu'):
+    # Load stored model:
+    temp = torch.load(pretrained_model, map_location=device)['state_dict']
+    # Because of dataparallel there is contradiction in the name of the keys so we need to remove part of the string in the keys:.
+    from collections import OrderedDict
+    checkpoint = OrderedDict()
+    for key in temp.keys():
+        new_key = key.replace("module.","")
+        checkpoint[new_key]=temp[key]
+
+    return checkpoint
+
 
 
 if __name__ == '__main__':
 
-    for seed in range(5,100):
-        main(seed)
-        print("Done with seed {}".format(seed))
+    seed = 65
+    main(seed)
+    print("Done with seed {}".format(seed))

@@ -30,7 +30,7 @@ maps of 64 × 48. - Salgan paper
 """
 
 GPU = 2
-frame_size = 64 # 5 times lower than the original
+frame_size = 64 # original shape is (360, 640, 3)
 learning_rate = 0.00001 #
 decay_rate = 0.1
 momentum = 0.9
@@ -43,8 +43,8 @@ load_model = False
 clip_length = 10
 number_of_videos = 700 # DHF1K offers 700 labeled videos, the other 300 are held back by the authors
 
-PATH_PYTORCH_WEIGHTS = 'model_weights/gen_model.pt'
-
+SALGAN_WEIGHTS = 'model_weights/gen_model.pt'
+CONV_LSTM_WEIGHTS = './SalConvLSTM.pt'
 #writer = SummaryWriter('./log') #Tensorboard
 
 # Parameters
@@ -92,31 +92,28 @@ def main(params = params):
     # =================================================
     # ================ Define Model ===================
 
-    # Using same kernel size as they do in the DHF1K paper
-    # Amaia uses default hidden size 128
-    # input size is 1 since we have grayscale images
-    model = SalGANplus()
+    # The seed pertains to initializing the weights with a normal distribution
+    # Using brute force for 100 seeds I found the number 65 to provide a good starting point (one that looks close to a saliency map predicted by the original SalGAN)
+    model = SalGANplus(seed_init=65)
 
     # Load the weights of salgan generator.
     # By setting strict to False we allow the model to load only the matching layers' weights
-    model.load_state_dict(torch.load(PATH_PYTORCH_WEIGHTS), strict=False)
+    model.salgan.load_state_dict(torch.load(SALGAN_WEIGHTS), strict=False)
 
-    criterion = nn.BCEWithLogitsLoss()
-    #criterion = nn.KLDivLoss() # this produces 0 training loss only
+    checkpoint = load_weights(model, CONV_LSTM_WEIGHTS)
+    model.Gates.load_state_dict(checkpoint, strict=False)
+    model.conv1x1.load_state_dict(checkpoint, strict=False)
 
     if load_model:
-        # Load stored model:
-        temp = torch.load(pretrained_model)['state_dict']
-        # Because of dataparallel there is contradiction in the name of the keys so we need to remove part of the string in the keys:.
-        from collections import OrderedDict
-        checkpoint = OrderedDict()
-        for key in temp.keys():
-            new_key = key.replace("module.","")
-            checkpoint[new_key]=temp[key]
-
+        checkpoint = load_weights(model, pretrained_model)
         model.load_state_dict(checkpoint, strict=True)
-        print("Pre-trained model loaded succesfully")
 
+    criterion = nn.BCEWithLogitsLoss() # This loss combines a Sigmoid layer and the BCELoss in one single class
+
+    #optimizer = torch.optim.SGD(model.parameters(), learning_rate, momentum=momentum, weight_decay=weight_decay)
+    optimizer = torch.optim.RMSprop(model.parameters(), learning_rate, alpha=0.99, eps=1e-08, momentum=momentum, weight_decay=weight_decay)
+
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.1, patience=4, min_lr=0.0000001)
 
     if GPU >= 2:
         model = nn.DataParallel(model).cuda()
@@ -124,10 +121,6 @@ def main(params = params):
     if GPU >= 1:
         model.cuda()
         criterion = criterion.cuda()
-
-    optimizer = torch.optim.SGD(model.parameters(), learning_rate, momentum=momentum, weight_decay=weight_decay)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.1, patience=4, min_lr=0.0000001)
-
 
     # =================================================
     # ================== Training =====================
@@ -182,6 +175,7 @@ def main(params = params):
     with open('to_plot.pkl', 'wb') as handle:
         pickle.dump(to_plot, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
+# ===================
 
 mean = lambda x : sum(x)/len(x)
 
@@ -190,6 +184,18 @@ def adjust_learning_rate(optimizer, epoch, decay_rate=0.1):
     lr = learning_rate * (decay_rate ** (epoch // 30))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
+
+def load_weights(model, pretrained_model, device='cpu'):
+    # Load stored model:
+    temp = torch.load(pretrained_model, map_location=device)['state_dict']
+    # Because of dataparallel there is contradiction in the name of the keys so we need to remove part of the string in the keys:.
+    from collections import OrderedDict
+    checkpoint = OrderedDict()
+    for key in temp.keys():
+        new_key = key.replace("module.","")
+        checkpoint[new_key]=temp[key]
+
+    return checkpoint
 
 def train(train_loader, model, criterion, optimizer, epoch):
 
@@ -218,7 +224,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
             gtruths = Variable(gtruths.type(dtype).transpose(0,1))
 
             #print(clip.size()) #works! torch.Size([5, 1, 1, 360, 640])
-
+            loss = 0
             for idx in range(clip.size()[0]):
                 #print(clip[idx].size())
                 # Compute output
@@ -230,20 +236,23 @@ def train(train_loader, model, criterion, optimizer, epoch):
                     saliency_map = torch.cat([saliency_map, torch.zeros(a, b, c, 1).cuda()], 3) #because of upsampling we need to concatenate another column of zeroes. The original number is odd so it is impossible for upsampling to get an odd number as it scales by 2
 
                 # Compute loss
-                loss = criterion(saliency_map, gtruths[idx])
+                loss = loss + criterion(saliency_map, gtruths[idx])
                 # Keep score
                 frame_losses.append(loss.data)
 
+                """
                 # Accumulate gradients
                 if idx == (clip.size()[0]-1):
                     loss.backward()
                 else:
                     loss.backward(retain_graph=True)
+                """
 
             if j == 0:
                 if not os.path.exists("./test"):
                     os.mkdir("./test")
                 utils.save_image(clip[idx], "./test/clip{}.png".format(i))
+                utils.save_image(gtruths[idx], "./test/gtruths{}.png".format(i))
                 utils.save_image(saliency_map, "./test/smap{}.png".format(i))
 
             # Repackage to avoid backpropagating further through time
@@ -256,7 +265,13 @@ def train(train_loader, model, criterion, optimizer, epoch):
             #cell = Variable(cell.data)
 
 
-            # Compute gradient and do optimizing step
+            # Compute gradient
+            loss.backward()
+
+            # Clip gradient to override explosive gradients. Gradients are accumulated so I went for a threshold that depends on clip length.
+            nn.utils.clip_grad_norm(model.parameters(), 10*clip.size()[0])
+
+            # Update parameters
             optimizer.step()
 
             #state = (hidden, cell)

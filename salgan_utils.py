@@ -59,3 +59,24 @@ def postprocess_prediction(prediction, size=None):
     saliency_map = np.clip(saliency_map, 0, 255)
 
     return saliency_map
+
+
+
+if __name__ == '__main__':
+
+    import os
+    src = './test'
+    dst = './sample_saliency_2'
+
+    for i, name in enumerate(os.listdir(src)):
+        path_image = os.path.join(src, name)
+        image = cv2.imread(path_image)
+
+        # postprocess
+        saliency = postprocess_prediction(image, (360,640))
+
+        # save saliency, name depends on seed
+        cv2.imwrite(os.path.join(dst, "{}".format(i)+name), saliency)
+        print("Processed image {}".format(i))
+
+
