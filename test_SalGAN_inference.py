@@ -11,7 +11,10 @@ PATH_PYTORCH_WEIGHTS = 'model_weights/gen_model.pt'
 PATH_SAMPLE_IMAGES = 'sample_images'
 PATH_SAMPLE_SALIENCY = 'sample_saliency'
 CONV_LSTM_WEIGHTS = './SalConvLSTM.pt'
-USE_GPU=False
+USE_GPU=True
+
+load_whole_model = False
+PATH_TO_MODEL = "./SalGANplus.pt"
 
 def main(seed_init):
     """
@@ -31,11 +34,17 @@ def main(seed_init):
     """
 
     model = SalGANplus(seed_init=seed_init, use_gpu=USE_GPU)
-    #model = salgan_generator.create_model()
-    model.salgan.load_state_dict(torch.load(PATH_PYTORCH_WEIGHTS), strict=False)
-    checkpoint = load_weights(model, CONV_LSTM_WEIGHTS)
-    model.Gates.load_state_dict(checkpoint, strict=False)
-    model.conv1x1.load_state_dict(checkpoint, strict=False)
+
+    if load_whole_model == False:
+        model.salgan.load_state_dict(torch.load(PATH_PYTORCH_WEIGHTS), strict=False)
+        checkpoint = load_weights(CONV_LSTM_WEIGHTS)
+        model.Gates.load_state_dict(checkpoint, strict=False)
+        model.conv1x1.load_state_dict(checkpoint, strict=False)
+    else:
+        checkpoint = load_weights(PATH_TO_MODEL)
+        model.load_state_dict(checkpoint, strict=True)
+
+
     print("Pre-trained model loaded succesfully")
     model.eval()
 
@@ -56,6 +65,7 @@ def main(seed_init):
 
         if type(prediction) is tuple:
             _, prediction = prediction
+            prediction = torch.sigmoid(prediction)
 
         # get result to cpu and squeeze dimensions
         if USE_GPU:
@@ -63,16 +73,14 @@ def main(seed_init):
         else:
             prediction = prediction.squeeze().data.numpy()
 
-        """
         # postprocess
         saliency = postprocess_prediction(prediction, image_size)
-        """
 
         # save saliency, name depends on seed
-        cv2.imwrite(os.path.join(PATH_SAMPLE_SALIENCY, "{}".format(seed)+name), prediction)
+        cv2.imwrite(os.path.join(PATH_SAMPLE_SALIENCY, "{}".format(seed)+name), saliency)
         print("Processed image {}".format(i))
 
-def load_weights(model, pretrained_model, device='cpu'):
+def load_weights(pretrained_model, device='cpu'):
     # Load stored model:
     temp = torch.load(pretrained_model, map_location=device)['state_dict']
     # Because of dataparallel there is contradiction in the name of the keys so we need to remove part of the string in the keys:.
