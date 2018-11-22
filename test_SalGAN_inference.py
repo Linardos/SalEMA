@@ -1,6 +1,6 @@
 import torch
 from SalGANmore import SalGANplus, SalGANmid, SalGAN
-from salgan_utils import load_image, postprocess_prediction
+from salgan_utils import load_image
 import salgan_generator
 
 import os
@@ -65,19 +65,12 @@ def main(seed_init):
 
         if type(prediction) is tuple:
             _, prediction = prediction
-            prediction = torch.sigmoid(prediction)
+            #print(prediction*255)
 
-        # get result to cpu and squeeze dimensions
-        if USE_GPU:
-            prediction = prediction.squeeze().data.cpu().numpy()
-        else:
-            prediction = prediction.squeeze().data.numpy()
-
-        # postprocess
-        saliency = postprocess_prediction(prediction, image_size)
+        prediction = (torch.sigmoid(prediction.cpu())*255).type(torch.ByteTensor)
 
         # save saliency, name depends on seed
-        cv2.imwrite(os.path.join(PATH_SAMPLE_SALIENCY, "{}".format(seed)+name), saliency)
+        cv2.imwrite(os.path.join(PATH_SAMPLE_SALIENCY, "{}".format(seed)+name), prediction)
         print("Processed image {}".format(i))
 
 def load_weights(pretrained_model, device='cpu'):

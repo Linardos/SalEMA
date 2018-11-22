@@ -1,17 +1,18 @@
 import torch
 from torchvision.models import vgg16
 from torch import nn
-from torch.nn.functional import interpolate #Upsampling is supposedly deprecated, replace with interpolate, eventually, maybe
+#from torch.nn.functional import interpolate #Upsampling is supposedly deprecated, replace with interpolate, eventually, maybe
+from torch.nn.modules.upsampling import Upsample
+from torch.nn.functional import interpolate
 from torch.autograd import Variable
 from torch.nn.modules.conv import Conv2d
 from torch.nn.modules.activation import Sigmoid, ReLU
 from clstm import ConvLSTM
 
-
-class Interpolate(nn.Module):
+class Upsample(nn.Module):
     # Upsampling has been deprecated for some reason, this workaround allows us to still use the function within sequential.https://discuss.pytorch.org/t/using-nn-function-interpolate-inside-nn-sequential/23588
     def __init__(self, scale_factor, mode):
-        super(Interpolate, self).__init__()
+        super(Upsample, self).__init__()
         self.interp = interpolate
         self.scale_factor = scale_factor
         self.mode = mode
@@ -37,7 +38,7 @@ class SalGAN(nn.Module):
             ReLU(),
             Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
-            Interpolate(scale_factor=2, mode='nearest'),
+            Upsample(scale_factor=2, mode='nearest'),
 
             Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
@@ -45,7 +46,7 @@ class SalGAN(nn.Module):
             ReLU(),
             Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
-            Interpolate(scale_factor=2, mode='nearest'),
+            Upsample(scale_factor=2, mode='nearest'),
 
             Conv2d(512, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
@@ -53,13 +54,13 @@ class SalGAN(nn.Module):
             ReLU(),
             Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
-            Interpolate(scale_factor=2, mode='nearest'),
+            Upsample(scale_factor=2, mode='nearest'),
 
             Conv2d(256, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
             Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
-            Interpolate(scale_factor=2, mode='nearest'),
+            Upsample(scale_factor=2, mode='nearest'),
 
             Conv2d(128, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
@@ -101,7 +102,7 @@ class SalGANplus(nn.Module):
             ReLU(),
             Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
-            Interpolate(scale_factor=2, mode='nearest'),
+            Upsample(scale_factor=2, mode='nearest'),
 
             Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
@@ -109,7 +110,7 @@ class SalGANplus(nn.Module):
             ReLU(),
             Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
-            Interpolate(scale_factor=2, mode='nearest'),
+            Upsample(scale_factor=2, mode='nearest'),
 
             Conv2d(512, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
@@ -117,13 +118,13 @@ class SalGANplus(nn.Module):
             ReLU(),
             Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
-            Interpolate(scale_factor=2, mode='nearest'),
+            Upsample(scale_factor=2, mode='nearest'),
 
             Conv2d(256, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
             Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
-            Interpolate(scale_factor=2, mode='nearest'),
+            Upsample(scale_factor=2, mode='nearest'),
 
             #During Upsampling operation we may end up losing 1 dimension if it was an odd number before
 
@@ -148,11 +149,87 @@ class SalGANplus(nn.Module):
             torch.manual_seed(seed_init)
             nn.init.normal_(param)
 
+        # Freeze SalGAN
+        for child in self.salgan.children():
+            for param in child.parameters():
+                param.requires_grad = False
+
+        #print(list(self.salgan.children()))
+        #print("swifty")
+        #print(list(self.salgan.children())[-5:-1])
+
+
+    def thaw(self, epoch, optimizer):
+
+        """
+        A function to gradually unfreeze layers.
+
+        The requires_grad of the corresponding layers is switched to True and then the new parameters are added to the optimizer.
+
+        (https://discuss.pytorch.org/t/how-the-pytorch-freeze-network-in-some-layers-only-the-rest-of-the-training/7088/3)
+
+        """
+
+        if epoch < 2:
+            return optimizer
+
+        elif epoch < 3:
+            for child in list(self.salgan.children())[-5:-1]:
+                for name, param in child.named_parameters():
+                    param.requires_grad = True
+                    optimizer.add_param_group({"params": param})
+                    print("{} succesfully thawed".format(name))
+
+            return optimizer
+
+        elif epoch < 4:
+            for child in list(self.salgan.children())[-10:-5]:
+                for name, param in child.named_parameters():
+                    param.requires_grad = True
+                    optimizer.add_param_group({"params": param})
+                    print("{} succesfully thawed".format(name))
+
+            return optimizer
+
+        elif epoch < 5:
+            for child in list(self.salgan.children())[-15:-10]:
+                for name, param in child.named_parameters():
+                    param.requires_grad = True
+                    optimizer.add_param_group({"params": param})
+                    print("{} succesfully thawed".format(name))
+
+            return optimizer
+
+        else:
+            for child in list(self.salgan.children())[0:-15]:
+                for name, param in child.named_parameters():
+                    param.requires_grad = True
+                    optimizer.add_param_group({"params": param})
+                    print("{} succesfully thawed".format(name))
+
+            return optimizer
+
+    def print_layers(self):
+
+        for child in self.salgan.children():
+            print("{}".format(child))
+            for name, param in child.named_parameters():
+                print("For {} the requires_grad is {}".format(name, param.requires_grad))
+
+        print("ConvLSTM")
+        for name, param in self.Gates.named_parameters():
+            print("For {} the requires_grad is {}".format(name, param.requires_grad))
+
+        print("Saliency 1x1 Convolution")
+        for name, param in self.conv1x1.named_parameters():
+            print("For {} the requires_grad is {}".format(name, param.requires_grad))
+
+
 
     def forward(self, input_, prev_state=None):
 
-        #print(input_.size())
         x = self.salgan(input_)
+
         #print(x.size())
         # get batch and spatial sizes
         batch_size = x.data.size()[0]
@@ -232,7 +309,7 @@ class SalGANmid(nn.Module):
             ReLU(),
             Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
-            Interpolate(scale_factor=2, mode='nearest'),
+            Upsample(scale_factor=2, mode='nearest'),
 
             Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
@@ -240,7 +317,7 @@ class SalGANmid(nn.Module):
             ReLU(),
             Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
-            Interpolate(scale_factor=2, mode='nearest'),
+            Upsample(scale_factor=2, mode='nearest'),
 
             Conv2d(512, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
@@ -248,13 +325,13 @@ class SalGANmid(nn.Module):
             ReLU(),
             Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
-            Interpolate(scale_factor=2, mode='nearest'),
+            Upsample(scale_factor=2, mode='nearest'),
 
             Conv2d(256, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
             Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
-            Interpolate(scale_factor=2, mode='nearest'),
+            Upsample(scale_factor=2, mode='nearest'),
 
             Conv2d(128, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             ReLU(),
