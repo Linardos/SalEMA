@@ -154,9 +154,6 @@ class SalGANplus(nn.Module):
             for param in child.parameters():
                 param.requires_grad = False
 
-        #print(list(self.salgan.children()))
-        #print("swifty")
-        #print(list(self.salgan.children())[-5:-1])
 
 
     def thaw(self, epoch, optimizer):

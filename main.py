@@ -17,7 +17,6 @@ dtype = torch.FloatTensor
 if torch.cuda.is_available():
     dtype = torch.cuda.FloatTensor
 
-
 frame_size = (192, 256) # original shape is (360, 640, 3)
 learning_rate = 0.00001 #
 decay_rate = 0.1
@@ -32,6 +31,7 @@ clip_length = 10
 number_of_videos = 15 # DHF1K offers 700 labeled videos, the other 300 are held back by the authors
 
 
+TEMPORAL = False
 SALGAN_WEIGHTS = 'model_weights/gen_model.pt'
 CONV_LSTM_WEIGHTS = './SalConvLSTM.pt'
 #writer = SummaryWriter('./log') #Tensorboard
@@ -74,16 +74,17 @@ def main(params = params):
 
     # The seed pertains to initializing the weights with a normal distribution
     # Using brute force for 100 seeds I found the number 65 to provide a good starting point (one that looks close to a saliency map predicted by the original SalGAN)
-    model = SalGANplus(seed_init=65)
+    #model = SalGANplus(seed_init=65)
+    model = SalGAN()
 
     #criterion = nn.BCEWithLogitsLoss() # This loss combines a Sigmoid layer and the BCELoss in one single class
     criterion = nn.BCELoss()
-    #optimizer = torch.optim.SGD(model.parameters(), learning_rate, momentum=momentum, weight_decay=weight_decay)
+    optimizer = torch.optim.SGD(model.parameters(), learning_rate, momentum=momentum, weight_decay=weight_decay)
     #optimizer = torch.optim.RMSprop(model.parameters(), learning_rate, alpha=0.99, eps=1e-08, momentum=momentum, weight_decay=weight_decay)
     #start
 
     # Load only the unfrozen part to the optimizer
-    optimizer = torch.optim.Adam([{'params': model.Gates.parameters()},{'params': model.conv1x1.parameters()}], learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=weight_decay)
+    #optimizer = torch.optim.Adam([{'params': model.Gates.parameters()},{'params': model.conv1x1.parameters()}], learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=weight_decay)
 
 
     if load_model == False:
@@ -129,42 +130,43 @@ def main(params = params):
         # train for one epoch
         train_loss, n_iter, optimizer = train(train_loader, model, criterion, optimizer, epoch, n_iter)
 
-        val_loss = validate(val_loader, model, criterion, epoch)
+        if TEMPORAL:
+            val_loss = validate(val_loader, model, criterion, epoch)
 
-        if epoch % plot_every == 0:
-            train_losses.append(train_loss.cpu())
-            val_losses.append(val_loss.cpu())
+            if epoch % plot_every == 0:
+                train_losses.append(train_loss.cpu())
+                val_losses.append(val_loss.cpu())
 
-        print("Epoch {}/{} done with train loss {} and validation loss {}\n".format(epoch, epochs, train_loss, val_loss))
+            print("Epoch {}/{} done with train loss {} and validation loss {}\n".format(epoch, epochs, train_loss, val_loss))
 
     print("Training started at {} and finished at : {} \n Now saving..".format(starting_time, datetime.datetime.now().replace(microsecond=0)))
 
     # ===================== #
     # ======  Saving ====== #
-
-    torch.save({
-        'epoch': epoch + 1,
-        'state_dict': model.cpu().state_dict(),
-        'optimizer' : optimizer.state_dict()
-        }, 'SalGANplus.pt')
-    """
-    hyperparameters = {
-        'momentum' : momentum,
-        'weight_decay' : weight_decay,
-        'learning_rate' : learning_rate,
-        'decay_rate' : decay_rate,
-        'epochs' : epochs,
-        'batch_size' : batch_size
-    }
-    """
-
-    to_plot = {
-        'epoch_ticks': list(range(start_epoch, epochs, plot_every)),
-        'train_losses': train_losses,
-        'val_losses': val_losses
+    if TEMPORAL:
+        torch.save({
+            'epoch': epoch + 1,
+            'state_dict': model.cpu().state_dict(),
+            'optimizer' : optimizer.state_dict()
+            }, 'SalGANplus.pt')
+        """
+        hyperparameters = {
+            'momentum' : momentum,
+            'weight_decay' : weight_decay,
+            'learning_rate' : learning_rate,
+            'decay_rate' : decay_rate,
+            'epochs' : epochs,
+            'batch_size' : batch_size
         }
-    with open('to_plot.pkl', 'wb') as handle:
-        pickle.dump(to_plot, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        """
+
+        to_plot = {
+            'epoch_ticks': list(range(start_epoch, epochs, plot_every)),
+            'train_losses': train_losses,
+            'val_losses': val_losses
+            }
+        with open('to_plot.pkl', 'wb') as handle:
+            pickle.dump(to_plot, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 # ===================
 
@@ -202,11 +204,12 @@ def train(train_loader, model, criterion, optimizer, epoch, n_iter):
     # Switch to train mode
     model.train()
 
-    # Unfreeze layers depending on epoch number
-    optimizer = model.module.thaw(epoch, optimizer) #When you wrap a model with DataParallel, the model.module can be seen as the model before it’s wrapped.
+    if TEMPORAL:
+        # Unfreeze layers depending on epoch number
+        optimizer = model.module.thaw(epoch, optimizer) #When you wrap a model with DataParallel, the model.module can be seen as the model before it’s wrapped.
 
-    # Confirm:
-    model.module.print_layers()
+        # Confirm:
+        model.module.print_layers()
 
     video_losses = []
     print("Now commencing epoch {}".format(epoch))
@@ -231,30 +234,55 @@ def train(train_loader, model, criterion, optimizer, epoch, n_iter):
             clip = Variable(clip.type(dtype).transpose(0,1))
             gtruths = Variable(gtruths.type(dtype).transpose(0,1))
 
-            #print(clip.size()) #works! torch.Size([5, 1, 1, 360, 640])
-            loss = 0
-            for idx in range(clip.size()[0]):
-                #print(clip[idx].size())
+            if TEMPORAL:
+                #print(clip.size()) #works! torch.Size([5, 1, 1, 360, 640])
+                loss = 0
+                for idx in range(clip.size()[0]):
+                    #print(clip[idx].size())
 
-                # Compute output
-                state, saliency_map = model.forward(input_ = clip[idx], prev_state = state) # Based on the number of epoch the model will unfreeze deeper layers moving on to shallow ones
+                    # Compute output
+                    state, saliency_map = model.forward(input_ = clip[idx], prev_state = state) # Based on the number of epoch the model will unfreeze deeper layers moving on to shallow ones
 
-                saliency_map = saliency_map.squeeze(0) # Target is 3 dimensional (grayscale image)
-                if saliency_map.size() != gtruths[idx].size():
-                    #print(saliency_map.size())
-                    #print(gtruths[idx].size())
-                    a, b, c, _ = saliency_map.size()
-                    saliency_map = torch.cat([saliency_map, torch.zeros(a, b, c, 1).cuda()], 3) #because of upsampling we need to concatenate another column of zeroes. The original number is odd so it is impossible for upsampling to get an odd number as it scales by 2
+                    saliency_map = saliency_map.squeeze(0) # Target is 3 dimensional (grayscale image)
+                    if saliency_map.size() != gtruths[idx].size():
+                        #print(saliency_map.size())
+                        #print(gtruths[idx].size())
+                        a, b, c, _ = saliency_map.size()
+                        saliency_map = torch.cat([saliency_map, torch.zeros(a, b, c, 1).cuda()], 3) #because of upsampling we need to concatenate another column of zeroes. The original number is odd so it is impossible for upsampling to get an odd number as it scales by 2
 
 
-                # Apply sigmoid before visualization
-                # logits will be whatever you have to rescale this
+                    # Apply sigmoid before visualization
+                    # logits will be whatever you have to rescale this
 
-                # Compute loss
-                loss = loss + criterion(saliency_map, gtruths[idx])
+                    # Compute loss
+                    loss = loss + criterion(saliency_map, gtruths[idx])
 
-            # Keep score
-            accumulated_losses.append(loss.data)
+                # Keep score
+                accumulated_losses.append(loss.data)
+
+                # Compute gradient
+                loss.backward()
+
+
+                # Clip gradient to avoid explosive gradients. Gradients are accumulated so I went for a threshold that depends on clip length. Note that the loss that is stored in the score for printing does not include this clipping.
+                nn.utils.clip_grad_norm_(model.parameters(), 10*clip.size()[0])
+
+                # Update parameters
+                optimizer.step()
+
+                # Repackage to avoid backpropagating further through time
+                state = repackage_hidden(state)
+
+
+            else:
+                for idx in range(clip.size()[0]):
+                    saliency_map = model(clip[idx])
+                    saliency_map = saliency_map.squeeze(0)
+                    loss = criterion(saliency_map, gtruths[idx])
+                    loss.backward()
+                    optimizer.step()
+
+                    accumulated_losses.append(loss.data)
 
             # Visualize some of the data
             if j == 5:
@@ -274,31 +302,6 @@ def train(train_loader, model, criterion, optimizer, epoch, n_iter):
                 #writer.add_image('Prediction', prediction, n_iter)
 
 
-            # Compute gradient
-            loss.backward()
-
-            # Clip gradient to avoid explosive gradients. Gradients are accumulated so I went for a threshold that depends on clip length. Note that the loss that is stored in the score for printing does not include this clipping.
-            nn.utils.clip_grad_norm_(model.parameters(), 10*clip.size()[0])
-
-            # Update parameters
-            optimizer.step()
-
-            # Repackage to avoid backpropagating further through time
-            state = repackage_hidden(state)
-
-            """
-            for name, param in model.named_parameters():
-                #writer.add_histogram(name, param.clone().cpu().data.numpy(), n_iter)
-            """
-
-
-
-            """
-            if (j+1)%20==0:
-                print('Training Loss: {} Batch/Clip: {}/{} '.format(loss.data, i, j+1))
-            """
-
-        #writer.add_scalar('Train/Loss', mean(accumulated_losses), i)
         end = datetime.datetime.now().replace(microsecond=0)
         print('Epoch: {}\tVideo: {}\t Training Loss: {}\t Time elapsed: {}\t'.format(epoch, i, mean(accumulated_losses), end-start))
         video_losses.append(mean(accumulated_losses))
@@ -341,7 +344,6 @@ def validate(val_loader, model, criterion, epoch):
             accumulated_losses.append(loss.data)
 
         video_losses.append(mean(accumulated_losses))
-        #writer.add_scalar('Val/Loss', mean(accumulated_losses), i)
 
     return(mean(video_losses))
 
