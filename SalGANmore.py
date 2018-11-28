@@ -178,7 +178,6 @@ class SalGANplus(nn.Module):
                 for name, param in child.named_parameters():
                     param.requires_grad = True
                     optimizer.add_param_group({"params": param})
-                    print("{} succesfully thawed".format(name))
 
             return optimizer
 
@@ -187,7 +186,6 @@ class SalGANplus(nn.Module):
                 for name, param in child.named_parameters():
                     param.requires_grad = True
                     optimizer.add_param_group({"params": param})
-                    print("{} succesfully thawed".format(name))
 
             return optimizer
 
@@ -196,17 +194,18 @@ class SalGANplus(nn.Module):
                 for name, param in child.named_parameters():
                     param.requires_grad = True
                     optimizer.add_param_group({"params": param})
-                    print("{} succesfully thawed".format(name))
 
             return optimizer
 
-        else:
+        elif epoch == 5:
             for child in list(self.salgan.children())[0:-15]:
                 for name, param in child.named_parameters():
                     param.requires_grad = True
                     optimizer.add_param_group({"params": param})
-                    print("{} succesfully thawed".format(name))
 
+            return optimizer
+
+        else:
             return optimizer
 
     def print_layers(self):
@@ -282,7 +281,7 @@ class SalGANplus(nn.Module):
         hidden = out_gate * torch.tanh(cell)
 
         state = [hidden,cell]
-        saliency_map = self.conv1x1(cell)
+        saliency_map = torch.sigmoid(self.conv1x1(cell))
 
         return (hidden, cell), saliency_map
 

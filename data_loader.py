@@ -2,22 +2,21 @@ import torch
 import os
 import datetime
 import numpy as np
+import cv2
 from torch.utils import data
-from PIL import Image
 from torchvision import utils
 
 
 # The DataLoader for our specific video datataset with extracted frames
 class DHF1K_frames(data.Dataset):
 
-  def __init__(self, split, clip_length, number_of_videos, frames_path = "/imatge/lpanagiotis/work/DHF1K/frames", gt_path = "/imatge/lpanagiotis/work/DHF1K/maps",  val_perc = 0.15, transforms = None):
+  def __init__(self, split, clip_length, number_of_videos, resolution, frames_path = "/imatge/lpanagiotis/work/DHF1K/frames", gt_path = "/imatge/lpanagiotis/work/DHF1K/maps",  val_perc = 0.15):
 
-        self.transforms = transforms
         self.cl = clip_length
         self.frames_path = frames_path # in our case it's salgan saliency maps
         self.gt_path = gt_path#ground truth
-
-
+        self.ImageNet_mean = [103.939, 116.779, 123.68]
+        self.resolution = resolution
         # A list to keep all video lists of salgan predictions, which will be our dataset.
         self.video_list = []
 
@@ -88,184 +87,35 @@ class DHF1K_frames(data.Dataset):
         packed = []
         for i, frame in enumerate(frames):
 
-          # Load data and get ground truth
+          # Load and preprocess frames
           path_to_frame = os.path.join(self.frames_path, str(true_index), frame)
 
-          X = Image.open(path_to_frame)
-          if self.transforms:
-            X = self.transforms(X)
-          X = (X - X.min())/(X.max()-X.min()) # Normalize min 0 max 1
+          X = cv2.imread(path_to_frame)
+          X = cv2.resize(X, (self.resolution[1], self.resolution[0]), interpolation=cv2.INTER_AREA)
+          X = X.astype(np.float32)
+          X -= self.ImageNet_mean
+          #X = (X-np.min(X))/(np.max(X)-np.min(X))
+          X = torch.FloatTensor(X)
+          X = X.permute(2,0,1) # swap channel dimensions
 
+          # Load and preprocess ground truth (saliency maps)
           path_to_gt = os.path.join(self.gt_path, str(true_index), gts[frame])
 
-          y = Image.open(path_to_gt)
-          if self.transforms:
-            y = self.transforms(y)
-          y = (y - y.min())/(y.max()-y.min())
+          y = cv2.imread(path_to_gt, 0) # Load as grayscale
+          y = cv2.resize(y, (self.resolution[1], self.resolution[0]), interpolation=cv2.INTER_AREA)
+          y = (y-np.min(y))/(np.max(y)-np.min(y))
+          y = torch.FloatTensor(y)
 
           data.append(X.unsqueeze(0))
           gt.append(y.unsqueeze(0))
 
           if (i+1)%self.cl == 0 or i == (len(frames)-1):
-            #print(np.array(data).shape) #looks okay
 
-            data_tensor = torch.cat(data,0) #bug was actually here
+            data_tensor = torch.cat(data,0)
             gt_tensor = torch.cat(gt,0)
             packed.append((data_tensor,gt_tensor)) # pack a list of data with the corresponding list of ground truths
             data = []
             gt = []
 
-
-        return packed
-
-
-
-
-
-# DataLoader for inference Works for EgoMon and GTEA
-class Ego_frames(data.Dataset):
-
-  def __init__(self, clip_length, frames_path, transforms = None, num_videos=None):
-
-        self.transforms = transforms
-        self.cl = clip_length
-        self.frames_path = frames_path # in our case it's salgan saliency maps
-
-        self.video_dict = {}
-
-        start = datetime.datetime.now().replace(microsecond=0) # Gives accurate human readable time, rounded down not to include too many decimals
-        activities_folders = os.listdir(frames_path)
-        self.match_i_to_act = {}
-        for i, activity in enumerate(activities_folders):
-            self.match_i_to_act[i] = activity
-
-            complete_path = os.path.join(frames_path, activity)
-            frame_files = os.listdir(complete_path)
-
-            frame_files_sorted = sorted(frame_files)
-            #print(frame_files_sorted[0:30]) looks good
-            # a list of lists
-            self.video_dict[activity]=frame_files_sorted
-
-            print("Frames for {} organized.".format(activity))
-            print("Time elapsed so far: {}".format(datetime.datetime.now().replace(microsecond=0)-start))
-            if num_videos!=None:
-              if i>num_videos:
-                break
-
-
-  def __len__(self):
-        'Denotes the total number of samples'
-        return len(self.video_dict.keys())
-
-  def __getitem__(self, video_index):
-
-        activity = self.match_i_to_act[video_index]
-        'Generates one sample of data'
-        # Select sample video (frame list), in our case saliency map list
-        frames = self.video_dict[activity]
-
-        data = []
-        frame_names = []
-        packed = []
-        for i, frame in enumerate(frames):
-          # Load data
-          path_to_frame = os.path.join(self.frames_path, activity, frame)
-
-          X = Image.open(path_to_frame)
-          if self.transforms:
-            X = self.transforms(X)
-          X = (X - X.min())/(X.max()-X.min()) # Normalize min 0 max 1
-
-          data.append(X.unsqueeze(0))
-          frame_names.append(frame)
-
-          if (i+1)%self.cl == 0 or i == (len(frames)-1):
-            #print(np.array(data).shape) #looks okay
-
-            data_tensor = torch.cat(data,0) #bug was actually here
-            packed.append((frame_names, data_tensor))
-            data = []
-            frame_names = []
-
-        #print("Maybe inside here")
-
-        return packed
-
-
-
-# DataLoader for inference
-class EpicKitchen_frames(data.Dataset):
-
-  def __init__(self, clip_length, frames_path, transforms = None):
-
-        self.transforms = transforms
-        self.cl = clip_length
-        self.frames_path = frames_path # in our case it's salgan saliency maps
-
-        self.video_dict = {}
-
-        start = datetime.datetime.now().replace(microsecond=0) # Gives accurate human readable time, rounded down not to include too many decimals
-        activities_folders = os.listdir(frames_path)
-        self.match_i_to_vid_path = {}
-        count = 0
-        for x in ["train", "test"]:
-          root_path = os.path.join(frames_path, x)
-          people = os.listdir(root_path)
-          for person in people:
-            person_path = os.path.join(frames_path, x, person)
-            videos = os.listdir(person_path)
-
-            for video in videos: #Every video is a directory
-                # Define our source file
-                source_video = os.path.join(person_path, video)
-                # Define our destination directory
-                self.match_i_to_vid_path[count] = source_video
-
-                frame_files = os.listdir(source_video)
-                frame_files_sorted = sorted(frame_files)
-                self.video_dict[count]=frame_files_sorted
-
-
-                count+=1
-
-            print("Frames for {} organized.".format(person))
-            print("Time elapsed so far: {}".format(datetime.datetime.now().replace(microsecond=0)-start))
-
-
-  def __len__(self):
-        'Denotes the total number of samples'
-        return len(self.video_dict.keys())
-
-  def __getitem__(self, video_index):
-
-        'Generates one sample of data'
-        src_vid = self.match_i_to_vid_path[video_index]
-        frames = self.video_dict[video_index]
-        # Select sample video (frame list), in our case saliency map list
-        data = []
-        frame_names = []
-        packed = []
-        for i, frame in enumerate(frames):
-          # Load data
-          path_to_frame = os.path.join(src_vid, frame)
-
-          X = Image.open(path_to_frame).convert("L")
-          if self.transforms:
-            X = self.transforms(X)
-          X = (X - X.min())/(X.max()-X.min()) # Normalize min 0 max 1
-
-          data.append(X.unsqueeze(0))
-          frame_names.append(frame)
-
-          if (i+1)%self.cl == 0 or i == (len(frames)-1):
-            #print(np.array(data).shape) #looks okay
-
-            data_tensor = torch.cat(data,0) #bug was actually here
-            packed.append((frame_names, data_tensor))
-            data = []
-            frame_names = []
-
-        #print("Maybe inside here")
 
         return packed

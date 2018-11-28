@@ -17,36 +17,24 @@ dtype = torch.FloatTensor
 if torch.cuda.is_available():
     dtype = torch.cuda.FloatTensor
 
-"""
-Based on the superior BCE-based loss compared with MSE,
-we also explored the impact of computing the content loss over
-downsampled versions of the saliency map. This technique re-
-duces the required computational resources at both training and
-test times and, as shown in Table 3, not only does it not decrease
-performance, but it can actually improve it. Given this results,
-we chose to train SalGAN on saliency maps downsampled by
-a factor 1/4, which in our architecture corresponds to saliency
-maps of 64 × 48. - Salgan paper
-"""
 
-
-frame_size = 64 # original shape is (360, 640, 3)
+frame_size = (192, 256) # original shape is (360, 640, 3)
 learning_rate = 0.00001 #
 decay_rate = 0.1
 momentum = 0.9
 weight_decay = 1e-4
 start_epoch = 1
-epochs = 5
+epochs = 15
 plot_every = 1
 load_model = False
 pretrained_model = './SalGANplus.pt'
 clip_length = 10
-number_of_videos = 5 # DHF1K offers 700 labeled videos, the other 300 are held back by the authors
+number_of_videos = 15 # DHF1K offers 700 labeled videos, the other 300 are held back by the authors
 
 
 SALGAN_WEIGHTS = 'model_weights/gen_model.pt'
 CONV_LSTM_WEIGHTS = './SalConvLSTM.pt'
-writer = SummaryWriter('./log') #Tensorboard
+#writer = SummaryWriter('./log') #Tensorboard
 
 # Parameters
 params = {'batch_size': 1, # number of videos / batch, I need to implement padding if I want to do more than 1, but with DataParallel it's quite messy
@@ -63,25 +51,15 @@ def main(params = params):
     train_set = DHF1K_frames(
         number_of_videos = number_of_videos,
         clip_length = clip_length,
-        split = "train",
-        transforms = transforms.Compose([
-            transforms.Resize(frame_size),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                std=[0.229, 0.224, 0.225])
-            ]))
+        resolution = frame_size,
+        split = "train")
     print("Size of train set is {}".format(len(train_set)))
 
     val_set = DHF1K_frames(
         number_of_videos = number_of_videos,
         clip_length = clip_length,
-        split = "validation",
-        transforms = transforms.Compose([
-            transforms.Resize(frame_size),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                std=[0.229, 0.224, 0.225])
-            ]))
+        resolution = frame_size,
+        split = "validation")
     print("Size of validation set is {}".format(len(val_set)))
 
     #print(len(train_set[0]))
@@ -98,8 +76,8 @@ def main(params = params):
     # Using brute force for 100 seeds I found the number 65 to provide a good starting point (one that looks close to a saliency map predicted by the original SalGAN)
     model = SalGANplus(seed_init=65)
 
-    criterion = nn.BCEWithLogitsLoss() # This loss combines a Sigmoid layer and the BCELoss in one single class
-
+    #criterion = nn.BCEWithLogitsLoss() # This loss combines a Sigmoid layer and the BCELoss in one single class
+    criterion = nn.BCELoss()
     #optimizer = torch.optim.SGD(model.parameters(), learning_rate, momentum=momentum, weight_decay=weight_decay)
     #optimizer = torch.optim.RMSprop(model.parameters(), learning_rate, alpha=0.99, eps=1e-08, momentum=momentum, weight_decay=weight_decay)
     #start
@@ -115,9 +93,9 @@ def main(params = params):
         model.salgan.load_state_dict(torch.load(SALGAN_WEIGHTS), strict=False)
 
         # Load weights of ConvLSTM
-        checkpoint = load_weights(model, CONV_LSTM_WEIGHTS)
-        model.Gates.load_state_dict(checkpoint, strict=False)
-        model.conv1x1.load_state_dict(checkpoint, strict=False)
+        #checkpoint = load_weights(model, CONV_LSTM_WEIGHTS)
+        #model.Gates.load_state_dict(checkpoint, strict=False)
+        #model.conv1x1.load_state_dict(checkpoint, strict=False)
 
     else:
 
@@ -134,28 +112,6 @@ def main(params = params):
     model = nn.DataParallel(model).cuda()
     cudnn.benchmark = True #https://discuss.pytorch.org/t/what-does-torch-backends-cudnn-benchmark-do/5936
     criterion = criterion.cuda()
-
-    # =================================================
-    # ================== Make Graph ===================
-
-    #Can't make it work for pytorch..
-
-    """
-    dummy_input = torch.rand(1, 3, 36, 64)
-    #dummy_hidden = torch.rand(1, 128, 36, 64)
-    #dummy_state, _ = model.forward(dummy_input)
-    dummy_input = torch.rand(1, 3, 224, 224)
-    print(dummy_input.type())
-    import torchvision
-    with SummaryWriter(comment='alexnet') as w:
-        model = torchvision.models.alexnet()
-        w.add_graph(model, dummy_input)
-    exit()
-
-    with SummaryWriter(comment='SalGANplus') as w:
-        #model = torchvision.models.vgg19()
-        w.add_graph(model, (dummy_input, dummy_state[0], dummy_state[1]), verbose=False)
-    """
 
     # =================================================
     # ================== Training =====================
@@ -283,6 +239,7 @@ def train(train_loader, model, criterion, optimizer, epoch, n_iter):
                 # Compute output
                 state, saliency_map = model.forward(input_ = clip[idx], prev_state = state) # Based on the number of epoch the model will unfreeze deeper layers moving on to shallow ones
 
+                saliency_map = saliency_map.squeeze(0) # Target is 3 dimensional (grayscale image)
                 if saliency_map.size() != gtruths[idx].size():
                     #print(saliency_map.size())
                     #print(gtruths[idx].size())
@@ -300,16 +257,21 @@ def train(train_loader, model, criterion, optimizer, epoch, n_iter):
             accumulated_losses.append(loss.data)
 
             # Visualize some of the data
-            if j == 3:
-                writer.add_image('Frame', clip[idx], n_iter)
-                writer.add_image('Gtruth', gtruths[idx], n_iter)
+            if j == 5:
+                print(saliency_map.max())
+                print(saliency_map.min())
+                print(gtruths[idx].max())
+                print(gtruths[idx].min())
 
-                prediction = (torch.sigmoid(saliency_map.cpu())*255).type(torch.ByteTensor)
+                #writer.add_image('Frame', clip[idx], n_iter)
+                #writer.add_image('Gtruth', gtruths[idx], n_iter)
 
-                writer.add_image('Prediction', prediction, n_iter)
+                prediction = (saliency_map.cpu()*255).type(torch.ByteTensor)
 
-            #Rescale maybe visualization problem?
-
+                utils.save_image(gtruths[idx], "./log/gt{}.png".format(i))
+                utils.save_image(prediction, "./log/postprocessed_smap{}.png".format(i))
+                utils.save_image(saliency_map, "./log/smap{}.png".format(i))
+                #writer.add_image('Prediction', prediction, n_iter)
 
 
             # Compute gradient
@@ -324,8 +286,10 @@ def train(train_loader, model, criterion, optimizer, epoch, n_iter):
             # Repackage to avoid backpropagating further through time
             state = repackage_hidden(state)
 
+            """
             for name, param in model.named_parameters():
-                writer.add_histogram(name, param.clone().cpu().data.numpy(), n_iter)
+                #writer.add_histogram(name, param.clone().cpu().data.numpy(), n_iter)
+            """
 
 
 
@@ -334,7 +298,7 @@ def train(train_loader, model, criterion, optimizer, epoch, n_iter):
                 print('Training Loss: {} Batch/Clip: {}/{} '.format(loss.data, i, j+1))
             """
 
-        writer.add_scalar('Train/Loss', mean(accumulated_losses), i)
+        #writer.add_scalar('Train/Loss', mean(accumulated_losses), i)
         end = datetime.datetime.now().replace(microsecond=0)
         print('Epoch: {}\tVideo: {}\t Training Loss: {}\t Time elapsed: {}\t'.format(epoch, i, mean(accumulated_losses), end-start))
         video_losses.append(mean(accumulated_losses))
@@ -361,11 +325,9 @@ def validate(val_loader, model, criterion, epoch):
             for idx in range(clip.size()[0]):
                 #print(clip[idx].size()) needs unsqueeze
                 # Compute output
-                (hidden, cell), saliency_map = model.forward(clip[idx], state)
-
-                hidden = Variable(hidden.data)
-                cell = Variable(cell.data)
-                state = (hidden, cell)
+                state, saliency_map = model.forward(clip[idx], state)
+                state = repackage_hidden(state)
+                saliency_map = saliency_map.squeeze(0)
 
                 if saliency_map.size() != gtruths[idx].size():
                     a, b, c, _ = saliency_map.size()
@@ -374,11 +336,12 @@ def validate(val_loader, model, criterion, epoch):
                 # Compute loss
                 loss = loss + criterion(saliency_map, gtruths[idx])
 
+
             # Keep score
             accumulated_losses.append(loss.data)
 
         video_losses.append(mean(accumulated_losses))
-        writer.add_scalar('Val/Loss', mean(accumulated_losses), i)
+        #writer.add_scalar('Val/Loss', mean(accumulated_losses), i)
 
     return(mean(video_losses))
 
