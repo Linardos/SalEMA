@@ -31,7 +31,7 @@ clip_length = 10
 number_of_videos = 15 # DHF1K offers 700 labeled videos, the other 300 are held back by the authors
 
 
-TEMPORAL = False
+TEMPORAL = True
 SALGAN_WEIGHTS = 'model_weights/gen_model.pt'
 CONV_LSTM_WEIGHTS = './SalConvLSTM.pt'
 #writer = SummaryWriter('./log') #Tensorboard
@@ -74,17 +74,17 @@ def main(params = params):
 
     # The seed pertains to initializing the weights with a normal distribution
     # Using brute force for 100 seeds I found the number 65 to provide a good starting point (one that looks close to a saliency map predicted by the original SalGAN)
-    #model = SalGANplus(seed_init=65)
-    model = SalGAN()
+    model = SalGANplus(seed_init=65)
+    #model = SalGAN()
 
     #criterion = nn.BCEWithLogitsLoss() # This loss combines a Sigmoid layer and the BCELoss in one single class
     criterion = nn.BCELoss()
-    optimizer = torch.optim.SGD(model.parameters(), learning_rate, momentum=momentum, weight_decay=weight_decay)
+    #optimizer = torch.optim.SGD(model.parameters(), learning_rate, momentum=momentum, weight_decay=weight_decay)
     #optimizer = torch.optim.RMSprop(model.parameters(), learning_rate, alpha=0.99, eps=1e-08, momentum=momentum, weight_decay=weight_decay)
     #start
 
     # Load only the unfrozen part to the optimizer
-    #optimizer = torch.optim.Adam([{'params': model.Gates.parameters()},{'params': model.conv1x1.parameters()}], learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=weight_decay)
+    optimizer = torch.optim.Adam([{'params': model.Gates.parameters()},{'params': model.final_convs.parameters()}], learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=weight_decay)
 
 
     if load_model == False:
@@ -245,8 +245,8 @@ def train(train_loader, model, criterion, optimizer, epoch, n_iter):
 
                     saliency_map = saliency_map.squeeze(0) # Target is 3 dimensional (grayscale image)
                     if saliency_map.size() != gtruths[idx].size():
-                        #print(saliency_map.size())
-                        #print(gtruths[idx].size())
+                        print(saliency_map.size())
+                        print(gtruths[idx].size())
                         a, b, c, _ = saliency_map.size()
                         saliency_map = torch.cat([saliency_map, torch.zeros(a, b, c, 1).cuda()], 3) #because of upsampling we need to concatenate another column of zeroes. The original number is odd so it is impossible for upsampling to get an odd number as it scales by 2
 
@@ -294,11 +294,9 @@ def train(train_loader, model, criterion, optimizer, epoch, n_iter):
                 #writer.add_image('Frame', clip[idx], n_iter)
                 #writer.add_image('Gtruth', gtruths[idx], n_iter)
 
-                prediction = (saliency_map.cpu()*255).type(torch.ByteTensor)
 
-                utils.save_image(gtruths[idx], "./log/gt{}.png".format(i))
-                utils.save_image(prediction, "./log/postprocessed_smap{}.png".format(i))
-                utils.save_image(saliency_map, "./log/smap{}.png".format(i))
+                utils.save_image(gtruths[idx], "./log/gt{}_epoch{}.png".format(i, epoch))
+                utils.save_image(saliency_map, "./log/smap{}_epoch{}.png".format(i, epoch))
                 #writer.add_image('Prediction', prediction, n_iter)
 
 

@@ -83,7 +83,7 @@ class SalGAN(nn.Module):
 
 class SalGANplus(nn.Module):
 
-    def __init__(self, seed_init, use_gpu=True):
+    def __init__(self, seed_init, freeze = True, use_gpu=True):
         super(SalGANplus,self).__init__()
 
         self.use_gpu = use_gpu
@@ -138,21 +138,33 @@ class SalGANplus(nn.Module):
         self.input_size = 128
         self.hidden_size = 128
         self.Gates = nn.Conv2d(in_channels = self.input_size + self.hidden_size, out_channels = 4 * self.hidden_size, kernel_size = (3, 3), padding = 1) #padding 1 to preserve HxW dimensions
-        self.conv1x1 = nn.Conv2d(in_channels = self.hidden_size, out_channels = 1, kernel_size = 1)
+
+
+        final_convolutions = [
+            Conv2d(self.hidden_size, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+            ReLU(),
+            Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+            ReLU(),
+            Conv2d(64, 1, kernel_size=(1, 1), stride=(1, 1), padding=0),
+            Sigmoid(),
+        ]
+        self.final_convs = torch.nn.Sequential(*final_convolutions)
+
 
         # Initialize weights of ConvLSTM
 
         for param in self.Gates.parameters():
             torch.manual_seed(seed_init)
             nn.init.normal_(param)
-        for param in self.conv1x1.parameters():
+        for param in self.final_convs.parameters():
             torch.manual_seed(seed_init)
             nn.init.normal_(param)
 
         # Freeze SalGAN
-        for child in self.salgan.children():
-            for param in child.parameters():
-                param.requires_grad = False
+        if freeze:
+            for child in self.salgan.children():
+                for param in child.parameters():
+                    param.requires_grad = False
 
 
 
@@ -217,7 +229,7 @@ class SalGANplus(nn.Module):
             print("For {} the requires_grad is {}".format(name, param.requires_grad))
 
         print("Saliency 1x1 Convolution")
-        for name, param in self.conv1x1.named_parameters():
+        for name, param in self.final_convs.named_parameters():
             print("For {} the requires_grad is {}".format(name, param.requires_grad))
 
 
@@ -278,7 +290,7 @@ class SalGANplus(nn.Module):
         hidden = out_gate * torch.tanh(cell)
 
         state = [hidden,cell]
-        saliency_map = torch.sigmoid(self.conv1x1(cell))
+        saliency_map = self.final_convs(cell)
 
         return (hidden, cell), saliency_map
 
