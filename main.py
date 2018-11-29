@@ -23,17 +23,17 @@ decay_rate = 0.1
 momentum = 0.9
 weight_decay = 1e-4
 start_epoch = 1
-epochs = 15
+epochs = 6
 plot_every = 1
 load_model = False
 pretrained_model = './SalGANplus.pt'
-clip_length = 10
-number_of_videos = 15 # DHF1K offers 700 labeled videos, the other 300 are held back by the authors
+clip_length = 20
+number_of_videos = 700 # DHF1K offers 700 labeled videos, the other 300 are held back by the authors
 
 
 TEMPORAL = True
 SALGAN_WEIGHTS = 'model_weights/gen_model.pt'
-CONV_LSTM_WEIGHTS = './SalConvLSTM.pt'
+#CONV_LSTM_WEIGHTS = './SalConvLSTM.pt' #These are not relevant in this problem after all, SalGAN was trained on a range of 0-255, the ConvLSTM was trained on a 0-1 range so they are incompatible.
 #writer = SummaryWriter('./log') #Tensorboard
 
 # Parameters
@@ -127,7 +127,8 @@ def main(params = params):
 
     n_iter = 0
     for epoch in range(start_epoch, epochs+1):
-        #adjust_learning_rate(optimizer, epoch, decay_rate)
+
+        adjust_learning_rate(optimizer, epoch, decay_rate)
 
         # train for one epoch
         train_loss, n_iter, optimizer = train(train_loader, model, criterion, optimizer, epoch, n_iter)
@@ -145,6 +146,7 @@ def main(params = params):
 
     # ===================== #
     # ======  Saving ====== #
+
     if TEMPORAL:
         torch.save({
             'epoch': epoch + 1,
@@ -303,7 +305,7 @@ def train(train_loader, model, criterion, optimizer, epoch, n_iter):
                 #writer.add_image('Frame', clip[idx], n_iter)
                 #writer.add_image('Gtruth', gtruths[idx], n_iter)
 
-
+                saliency_map = (saliency_map-np.min(saliency_map))/(np.max(saliency_map)-np.min(saliency_map))
                 utils.save_image(saliency_map, "./log/smap{}_epoch{}.png".format(i, epoch))
 
                 if epoch == 1:
