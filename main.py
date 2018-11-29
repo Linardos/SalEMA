@@ -74,8 +74,10 @@ def main(params = params):
 
     # The seed pertains to initializing the weights with a normal distribution
     # Using brute force for 100 seeds I found the number 65 to provide a good starting point (one that looks close to a saliency map predicted by the original SalGAN)
-    model = SalGANplus(seed_init=65)
-    #model = SalGAN()
+    if TEMPORAL:
+        model = SalGANplus(seed_init=65)
+    else:
+        model = SalGAN()
 
     #criterion = nn.BCEWithLogitsLoss() # This loss combines a Sigmoid layer and the BCELoss in one single class
     criterion = nn.BCELoss()
@@ -149,24 +151,31 @@ def main(params = params):
             'state_dict': model.cpu().state_dict(),
             'optimizer' : optimizer.state_dict()
             }, 'SalGANplus.pt')
-        """
-        hyperparameters = {
-            'momentum' : momentum,
-            'weight_decay' : weight_decay,
-            'learning_rate' : learning_rate,
-            'decay_rate' : decay_rate,
-            'epochs' : epochs,
-            'batch_size' : batch_size
-        }
-        """
+    else:
+        torch.save({
+            'epoch': epoch + 1,
+            'state_dict': model.cpu().state_dict(),
+            'optimizer' : optimizer.state_dict()
+            }, 'SalGAN.pt')
 
-        to_plot = {
-            'epoch_ticks': list(range(start_epoch, epochs, plot_every)),
-            'train_losses': train_losses,
-            'val_losses': val_losses
-            }
-        with open('to_plot.pkl', 'wb') as handle:
-            pickle.dump(to_plot, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    """
+    hyperparameters = {
+        'momentum' : momentum,
+        'weight_decay' : weight_decay,
+        'learning_rate' : learning_rate,
+        'decay_rate' : decay_rate,
+        'epochs' : epochs,
+        'batch_size' : batch_size
+    }
+    """
+
+    to_plot = {
+        'epoch_ticks': list(range(start_epoch, epochs, plot_every)),
+        'train_losses': train_losses,
+        'val_losses': val_losses
+        }
+    with open('to_plot.pkl', 'wb') as handle:
+        pickle.dump(to_plot, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 # ===================
 
@@ -295,8 +304,10 @@ def train(train_loader, model, criterion, optimizer, epoch, n_iter):
                 #writer.add_image('Gtruth', gtruths[idx], n_iter)
 
 
-                utils.save_image(gtruths[idx], "./log/gt{}_epoch{}.png".format(i, epoch))
                 utils.save_image(saliency_map, "./log/smap{}_epoch{}.png".format(i, epoch))
+
+                if epoch == 1:
+                    utils.save_image(gtruths[idx], "./log/gt{}.png".format(i))
                 #writer.add_image('Prediction', prediction, n_iter)
 
 

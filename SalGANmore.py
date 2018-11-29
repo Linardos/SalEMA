@@ -153,12 +153,23 @@ class SalGANplus(nn.Module):
 
         # Initialize weights of ConvLSTM
 
-        for param in self.Gates.parameters():
-            torch.manual_seed(seed_init)
-            nn.init.normal_(param)
-        for param in self.final_convs.parameters():
-            torch.manual_seed(seed_init)
-            nn.init.normal_(param)
+        torch.manual_seed(seed_init)
+        for name, param in self.Gates.named_parameters():
+                if "weight" in name:
+                    nn.init.xavier_normal_(param)
+                elif "bias" in name:
+                    nn.init.constant_(param, 0)
+                else:
+                    print("There is some uninitiallized parameter. Check your parameters and try again.")
+                    exit()
+        for name, param in self.final_convs.named_parameters():
+                if "weight" in name:
+                    nn.init.xavier_normal_(param)
+                elif "bias" in name:
+                    nn.init.constant_(param, 0)
+                else:
+                    print("There is some uninitiallized parameter. Check your parameters and try again.")
+                    exit()
 
         # Freeze SalGAN
         if freeze:
