@@ -172,7 +172,7 @@ def main(params = params):
     """
 
     to_plot = {
-        'epoch_ticks': list(range(start_epoch, epochs, plot_every)),
+        'epoch_ticks': list(range(start_epoch, epochs+1, plot_every)),
         'train_losses': train_losses,
         'val_losses': val_losses
         }
@@ -297,18 +297,20 @@ def train(train_loader, model, criterion, optimizer, epoch, n_iter):
 
             # Visualize some of the data
             if j == 5:
-                print(saliency_map.max())
-                print(saliency_map.min())
-                print(gtruths[idx].max())
-                print(gtruths[idx].min())
 
                 #writer.add_image('Frame', clip[idx], n_iter)
                 #writer.add_image('Gtruth', gtruths[idx], n_iter)
 
-                saliency_map = (saliency_map-np.min(saliency_map))/(np.max(saliency_map)-np.min(saliency_map))
-                utils.save_image(saliency_map, "./log/smap{}_epoch{}.png".format(i, epoch))
+                post_process_saliency_map = (saliency_map-torch.min(saliency_map))/(torch.max(saliency_map)-torch.min(saliency_map))
+                utils.save_image(post_process_saliency_map, "./log/smap{}_epoch{}.png".format(i, epoch))
 
                 if epoch == 1:
+                    print(saliency_map.max())
+                    print(saliency_map.min())
+                    print(gtruths[idx].max())
+                    print(gtruths[idx].min())
+                    print(post_process_saliency_map.max())
+                    print(post_process_saliency_map.min())
                     utils.save_image(gtruths[idx], "./log/gt{}.png".format(i))
                 #writer.add_image('Prediction', prediction, n_iter)
 
