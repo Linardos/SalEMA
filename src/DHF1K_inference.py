@@ -2,7 +2,7 @@ import cv2
 import os
 import datetime
 import numpy as np
-from .SalGANmore import SalGAN, SalGANplus, SalGANmid
+from model import SalGANmore
 import pickle
 import torch
 from torchvision import transforms, utils
@@ -18,7 +18,8 @@ if torch.cuda.is_available():
 
 clip_length = 10 #with 10 clips the loss seems to reach zero very fast
 number_of_videos = 700 # DHF1K offers 700 labeled videos, the other 300 are held back by the authors
-pretrained_model = '../SalGANplus.pt'
+pretrained_model = './SalGANplus.pt'
+frame_size = (192, 256)
 
 dst = "/imatge/lpanagiotis/work/DHF1K/SGplus_predictions"
 # Parameters
@@ -35,13 +36,10 @@ def main():
     dataset = DHF1K_frames(
         number_of_videos = number_of_videos,
         clip_length = clip_length,
-        resolution = frame_size,
-        split = None)
+        split = None,
+        resolution = frame_size)
          #add a parameter node = training or validation
     print("Size of test set is {}".format(len(dataset)))
-
-    #print(len(dataset[0]))
-    #print(len(dataset[1]))
 
     loader = data.DataLoader(dataset, **params)
 
@@ -51,7 +49,7 @@ def main():
     # Using same kernel size as they do in the DHF1K paper
     # Amaia uses default hidden size 128
     # input size is 1 since we have grayscale images
-    model = SalGANplus(seed_init=65, freeze=False)
+    model = SalGANmore.SalGANplus(seed_init=65, freeze=False)
 
     temp = torch.load(pretrained_model)['state_dict']
     # Because of dataparallel there is contradiction in the name of the keys so we need to remove part of the string in the keys:.
@@ -86,8 +84,8 @@ def main():
         count = 0
         state = None # Initially no hidden state
         for j, (clip, gtruths) in enumerate(video):
-            clip = Variable(clip.type(dtype).t(), requires_grad=False)
-            gtruths = Variable(gtruths.type(dtype).t(), requires_grad=False)
+            clip = Variable(clip.type(dtype).transpose(0,1), requires_grad=False)
+            gtruths = Variable(gtruths.type(dtype).transpose(0,1), requires_grad=False)
             for idx in range(clip.size()[0]):
                 # Compute output
                 state, saliency_map = model.forward(input_ = clip[idx], prev_state = state)

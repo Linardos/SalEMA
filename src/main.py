@@ -34,7 +34,7 @@ FREEZE = False
 TEMPORAL = True
 SALGAN_WEIGHTS = 'model_weights/gen_model.pt'
 #CONV_LSTM_WEIGHTS = './SalConvLSTM.pt' #These are not relevant in this problem after all, SalGAN was trained on a range of 0-255, the ConvLSTM was trained on a 0-1 range so they are incompatible.
-#writer = SummaryWriter('./log') #Tensorboard
+#writer = SummaryWriter('./log') #Tensorboard, uncomment all lines containing writer if you wish to use this visualization tool
 
 # Parameters
 params = {'batch_size': 1, # number of videos / batch, I need to implement padding if I want to do more than 1, but with DataParallel it's quite messy

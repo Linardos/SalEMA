@@ -10,7 +10,7 @@ from torchvision import utils
 # The DataLoader for our specific video datataset with extracted frames
 class DHF1K_frames(data.Dataset):
 
-  def __init__(self, split, clip_length, number_of_videos, resolution, frames_path = "/imatge/lpanagiotis/work/DHF1K/frames", gt_path = "/imatge/lpanagiotis/work/DHF1K/maps",  val_perc = 0.15):
+  def __init__(self, split, clip_length, number_of_videos, resolution=None, frames_path = "/imatge/lpanagiotis/work/DHF1K/frames", gt_path = "/imatge/lpanagiotis/work/DHF1K/maps",  val_perc = 0.15):
 
         self.cl = clip_length
         self.frames_path = frames_path # in our case it's salgan saliency maps
@@ -91,7 +91,8 @@ class DHF1K_frames(data.Dataset):
           path_to_frame = os.path.join(self.frames_path, str(true_index), frame)
 
           X = cv2.imread(path_to_frame)
-          X = cv2.resize(X, (self.resolution[1], self.resolution[0]), interpolation=cv2.INTER_AREA)
+          if self.resolution!=None:
+            X = cv2.resize(X, (self.resolution[1], self.resolution[0]), interpolation=cv2.INTER_AREA)
           X = X.astype(np.float32)
           X -= self.ImageNet_mean
           #X = (X-np.min(X))/(np.max(X)-np.min(X))
@@ -102,7 +103,8 @@ class DHF1K_frames(data.Dataset):
           path_to_gt = os.path.join(self.gt_path, str(true_index), gts[frame])
 
           y = cv2.imread(path_to_gt, 0) # Load as grayscale
-          y = cv2.resize(y, (self.resolution[1], self.resolution[0]), interpolation=cv2.INTER_AREA)
+          if self.resolution!=None:
+            y = cv2.resize(y, (self.resolution[1], self.resolution[0]), interpolation=cv2.INTER_AREA)
           y = (y-np.min(y))/(np.max(y)-np.min(y))
           y = torch.FloatTensor(y)
 
