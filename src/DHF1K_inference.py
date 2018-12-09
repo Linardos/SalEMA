@@ -17,11 +17,13 @@ if torch.cuda.is_available():
     dtype = torch.cuda.FloatTensor
 
 clip_length = 10 #with 10 clips the loss seems to reach zero very fast
-number_of_videos = 700 # DHF1K offers 700 labeled videos, the other 300 are held back by the authors
-pretrained_model = './SalGANplus.pt'
+number_of_videos = 2 # DHF1K offers 700 labeled videos, the other 300 are held back by the authors
+#pretrained_model = './SalGANplus.pt'
+pretrained_model = '/imatge/lpanagiotis/work/SalGANmore/model_weights/gen_model.pt' # Vanilla SalGAN
 frame_size = (192, 256)
 
-dst = "/imatge/lpanagiotis/work/DHF1K/SGplus_predictions"
+#dst = "/imatge/lpanagiotis/work/DHF1K/SGplus_predictions"
+dst = "/imatge/lpanagiotis/work/DHF1K/SG_predictions"
 # Parameters
 params = {'batch_size': 1, # number of videos / batch, I need to implement padding if I want to do more than 1, but with DataParallel it's quite messy
           'num_workers': 4,
@@ -49,18 +51,28 @@ def main():
     # Using same kernel size as they do in the DHF1K paper
     # Amaia uses default hidden size 128
     # input size is 1 since we have grayscale images
-    model = SalGANmore.SalGANplus(seed_init=65, freeze=False)
+    if pretrained_model == './SalGANplus.pt':
+        model = SalGANmore.SalGANplus(seed_init=65, freeze=False)
 
-    temp = torch.load(pretrained_model)['state_dict']
-    # Because of dataparallel there is contradiction in the name of the keys so we need to remove part of the string in the keys:.
-    from collections import OrderedDict
-    checkpoint = OrderedDict()
-    for key in temp.keys():
-        new_key = key.replace("module.","")
-        checkpoint[new_key]=temp[key]
+        temp = torch.load(pretrained_model)['state_dict']
+        # Because of dataparallel there is contradiction in the name of the keys so we need to remove part of the string in the keys:.
+        from collections import OrderedDict
+        checkpoint = OrderedDict()
+        for key in temp.keys():
+            new_key = key.replace("module.","")
+            checkpoint[new_key]=temp[key]
 
-    model.load_state_dict(checkpoint, strict=True)
-    print("Pre-trained model loaded succesfully")
+        model.load_state_dict(checkpoint, strict=True)
+        print("Pre-trained model SalGANplus loaded succesfully")
+
+        TEMPORAL = True
+
+    else:
+        model = SalGANmore.SalGAN()
+        model.salgan.load_state_dict(torch.load(pretrained_model))
+        print("Pre-trained model SalGAN loaded succesfully")
+
+        TEMPORAL = False
 
     model = nn.DataParallel(model).cuda()
     cudnn.benchmark = True #https://discuss.pytorch.org/t/what-does-torch-backends-cudnn-benchmark-do/5936
@@ -71,7 +83,7 @@ def main():
     if not os.path.exists(dst):
         os.mkdir(dst)
     else:
-        print("Be warned, you are about to write on an existing folder. If this is not intentional cancel now.")
+        print("Be warned, you are about to write on an existing folder {}. If this is not intentional cancel now.".format(dst))
 
     # switch to evaluate mode
     model.eval()
@@ -88,14 +100,19 @@ def main():
             gtruths = Variable(gtruths.type(dtype).transpose(0,1), requires_grad=False)
             for idx in range(clip.size()[0]):
                 # Compute output
-                state, saliency_map = model.forward(input_ = clip[idx], prev_state = state)
+                if TEMPORAL:
+                    state, saliency_map = model.forward(input_ = clip[idx], prev_state = state)
+                else:
+                    saliency_map = model.forward(input_ = clip[idx])
+
                 count+=1
                 saliency_map = saliency_map.squeeze(0)
 
                 post_process_saliency_map = (saliency_map-torch.min(saliency_map))/(torch.max(saliency_map)-torch.min(saliency_map))
                 utils.save_image(post_process_saliency_map, os.path.join(video_dst, "{}.png".format(str(count))))
 
-            state = repackage_hidden(state)
+            if TEMPORAL:
+                state = repackage_hidden(state)
 
         print("Video {} done".format(i+1))
 
