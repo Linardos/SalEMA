@@ -17,13 +17,15 @@ if torch.cuda.is_available():
     dtype = torch.cuda.FloatTensor
 
 clip_length = 10 #with 10 clips the loss seems to reach zero very fast
-number_of_videos = 2 # DHF1K offers 700 labeled videos, the other 300 are held back by the authors
+number_of_videos = 700 # DHF1K offers 700 labeled videos, the other 300 are held back by the authors
 #pretrained_model = './SalGANplus.pt'
-pretrained_model = '/imatge/lpanagiotis/work/SalGANmore/model_weights/gen_model.pt' # Vanilla SalGAN
+#pretrained_model = '/imatge/lpanagiotis/work/SalGANmore/model_weights/gen_model.pt' # Vanilla SalGAN
+pretrained_model = './SalGAN.pt'
 frame_size = (192, 256)
 
 #dst = "/imatge/lpanagiotis/work/DHF1K/SGplus_predictions"
-dst = "/imatge/lpanagiotis/work/DHF1K/SG_predictions"
+#dst = "/imatge/lpanagiotis/work/DHF1K/SG_predictions"
+dst = "/imatge/lpanagiotis/work/DHF1K/SGtuned_predictions"
 # Parameters
 params = {'batch_size': 1, # number of videos / batch, I need to implement padding if I want to do more than 1, but with DataParallel it's quite messy
           'num_workers': 4,
@@ -52,6 +54,7 @@ def main():
     # Amaia uses default hidden size 128
     # input size is 1 since we have grayscale images
     if pretrained_model == './SalGANplus.pt':
+
         model = SalGANmore.SalGANplus(seed_init=65, freeze=False)
 
         temp = torch.load(pretrained_model)['state_dict']
@@ -67,10 +70,27 @@ def main():
 
         TEMPORAL = True
 
+    elif pretrained_model == './SalGAN.pt':
+
+        model = SalGANmore.SalGAN()
+
+        temp = torch.load(pretrained_model)['state_dict']
+        # Because of dataparallel there is contradiction in the name of the keys so we need to remove part of the string in the keys:.
+        from collections import OrderedDict
+        checkpoint = OrderedDict()
+        for key in temp.keys():
+            new_key = key.replace("module.","")
+            checkpoint[new_key]=temp[key]
+
+        model.load_state_dict(checkpoint, strict=True)
+        print("Pre-trained model tuned SalGAN loaded succesfully")
+
+        TEMPORAL = False
+
     else:
         model = SalGANmore.SalGAN()
         model.salgan.load_state_dict(torch.load(pretrained_model))
-        print("Pre-trained model SalGAN loaded succesfully")
+        print("Pre-trained model vanilla SalGAN loaded succesfully")
 
         TEMPORAL = False
 

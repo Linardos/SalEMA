@@ -22,16 +22,15 @@ learning_rate = 0.000001 #
 decay_rate = 0.1
 momentum = 0.9
 weight_decay = 1e-4
-start_epoch = 1
-epochs = 7
+epochs = 5
 plot_every = 1
-load_model = True
-pretrained_model = './SalGANplus.pt'
+pretrained_model = None #This refers to a pretrained model beyond SalGAN. In any case we are loading pretrained SalGAN weights.
+new_model = 'SalGANmid.pt'
 clip_length = 10
-number_of_videos = 5 # DHF1K offers 700 labeled videos, the other 300 are held back by the authors
+number_of_videos = 4 # DHF1K offers 700 labeled videos, the other 300 are held back by the authors
 
-FREEZE = False
 TEMPORAL = True
+FREEZE = True
 SALGAN_WEIGHTS = 'model_weights/gen_model.pt'
 #CONV_LSTM_WEIGHTS = './SalConvLSTM.pt' #These are not relevant in this problem after all, SalGAN was trained on a range of 0-255, the ConvLSTM was trained on a 0-1 range so they are incompatible.
 #writer = SummaryWriter('./log') #Tensorboard, uncomment all lines containing writer if you wish to use this visualization tool
@@ -82,10 +81,18 @@ def main(params = params):
 
     # The seed pertains to initializing the weights with a normal distribution
     # Using brute force for 100 seeds I found the number 65 to provide a good starting point (one that looks close to a saliency map predicted by the original SalGAN)
-    if TEMPORAL:
+    if new_model == 'SalGANplus.pt':
         model = SalGANmore.SalGANplus(seed_init=65, freeze=FREEZE)
-    else:
+        print("Initialized {}".format(new_model))
+    elif new_model == 'SalGANmid.pt':
+        model = SalGANmore.SalGANmid(seed_init=65, freeze=FREEZE)
+        print("Initialized {}".format(new_model))
+    elif new_model == 'SalGAN.pt':
         model = SalGANmore.SalGAN()
+        print("Initialized {}".format(new_model))
+    else:
+        print("Your model was not recognized, check the name of the model and try again.")
+        exit()
     #criterion = nn.BCEWithLogitsLoss() # This loss combines a Sigmoid layer and the BCELoss in one single class
     criterion = nn.BCELoss()
     #optimizer = torch.optim.SGD(model.parameters(), learning_rate, momentum=momentum, weight_decay=weight_decay)
@@ -94,21 +101,23 @@ def main(params = params):
 
     if FREEZE:
         # Load only the unfrozen part to the optimizer
-        optimizer = torch.optim.Adam([{'params': model.Gates.parameters()},{'params': model.final_convs.parameters()}], learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=weight_decay)
+
+        if new_model == 'SalGANplus.pt':
+            optimizer = torch.optim.Adam([{'params': model.Gates.parameters()},{'params': model.final_convs.parameters()}], learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=weight_decay)
+
+        elif new_model == 'SalGANmid.pt':
+            optimizer = torch.optim.Adam([{'params': model.Gates.parameters()}], learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=weight_decay)
+
     else:
         optimizer = torch.optim.Adam(model.parameters(), learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=weight_decay)
 
 
-    if load_model == False:
+    if pretrained_model == None:
 
         # Load the weights of salgan generator.
         # By setting strict to False we allow the model to load only the matching layers' weights
         model.salgan.load_state_dict(torch.load(SALGAN_WEIGHTS), strict=False)
-
-        # Load weights of ConvLSTM
-        #checkpoint = load_weights(model, CONV_LSTM_WEIGHTS)
-        #model.Gates.load_state_dict(checkpoint, strict=False)
-        #model.conv1x1.load_state_dict(checkpoint, strict=False)
+        start_epoch = 1
 
     else:
 
@@ -140,19 +149,18 @@ def main(params = params):
         try:
             if epoch != epochs:
                 #adjust_learning_rate(optimizer, epoch, decay_rate) #Didn't use this after all
-
                 # train for one epoch
                 train_loss, n_iter, optimizer = train(train_loader, model, criterion, optimizer, epoch, n_iter)
 
-                if TEMPORAL:
-                    val_loss = validate(val_loader, model, criterion, epoch)
+                val_loss = validate(val_loader, model, criterion, epoch)
 
-                    if epoch % plot_every == 0:
-                        train_losses.append(train_loss.cpu())
-                        val_losses.append(val_loss.cpu())
+                if epoch % plot_every == 0:
+                    train_losses.append(train_loss.cpu())
+                    val_losses.append(val_loss.cpu())
 
-                    print("Epoch {}/{} done with train loss {} and validation loss {}\n".format(epoch, epochs, train_loss, val_loss))
+                print("Epoch {}/{} done with train loss {} and validation loss {}\n".format(epoch, epochs, train_loss, val_loss))
             else:
+
                 print("Training on whole set")
                 train_loss, n_iter, optimizer = train(whole_loader, model, criterion, optimizer, epoch, n_iter)
                 print("Epoch {}/{} done with train loss {}".format(epoch, epochs, train_loss))
@@ -160,7 +168,7 @@ def main(params = params):
 
         except RuntimeError:
             print("A memory error was encountered. Further training aborted.")
-            epoch = epoch - 1 # I did this after running current batch
+            epoch = epoch - 1
             break
 
     print("Training started at {} and finished at : {} \n Now saving..".format(starting_time, datetime.datetime.now().replace(microsecond=0)))
@@ -168,18 +176,11 @@ def main(params = params):
     # ===================== #
     # ======  Saving ====== #
 
-    if TEMPORAL:
-        torch.save({
-            'epoch': epoch + 1,
-            'state_dict': model.cpu().state_dict(),
-            'optimizer' : optimizer.state_dict()
-            }, 'SalGANplus.pt')
-    else:
-        torch.save({
-            'epoch': epoch + 1,
-            'state_dict': model.cpu().state_dict(),
-            'optimizer' : optimizer.state_dict()
-            }, 'SalGAN.pt')
+    torch.save({
+        'epoch': epoch + 1,
+        'state_dict': model.cpu().state_dict(),
+        'optimizer' : optimizer.state_dict()
+        }, new_model)
 
     """
     hyperparameters = {
@@ -240,8 +241,8 @@ def train(train_loader, model, criterion, optimizer, epoch, n_iter):
         # Unfreeze layers depending on epoch number
         optimizer = model.module.thaw(epoch, optimizer) #When you wrap a model with DataParallel, the model.module can be seen as the model before it’s wrapped.
 
-    # Confirm:
-    model.module.print_layers()
+        # Confirm:
+        model.module.print_layers()
 
     video_losses = []
     print("Now commencing epoch {}".format(epoch))
@@ -307,8 +308,10 @@ def train(train_loader, model, criterion, optimizer, epoch, n_iter):
 
 
             else:
+                print(type(clip))
+                print(clip.size())
                 for idx in range(clip.size()[0]):
-                    saliency_map = model(clip[idx])
+                    saliency_map = model.forward(clip[idx])
                     saliency_map = saliency_map.squeeze(0)
                     loss = criterion(saliency_map, gtruths[idx])
                     loss.backward()
@@ -317,7 +320,7 @@ def train(train_loader, model, criterion, optimizer, epoch, n_iter):
                     accumulated_losses.append(loss.data)
 
             # Visualize some of the data
-            if j == 5:
+            if i%50==0 and j == 5:
 
                 #writer.add_image('Frame', clip[idx], n_iter)
                 #writer.add_image('Gtruth', gtruths[idx], n_iter)
@@ -362,8 +365,11 @@ def validate(val_loader, model, criterion, epoch):
             for idx in range(clip.size()[0]):
                 #print(clip[idx].size()) needs unsqueeze
                 # Compute output
-                state, saliency_map = model.forward(clip[idx], state)
-                state = repackage_hidden(state)
+                if TEMPORAL:
+                    state, saliency_map = model.forward(clip[idx], state)
+                else:
+                    saliency_map = model.forward(clip[idx])
+
                 saliency_map = saliency_map.squeeze(0)
 
                 if saliency_map.size() != gtruths[idx].size():
@@ -373,6 +379,8 @@ def validate(val_loader, model, criterion, epoch):
                 # Compute loss
                 loss = loss + criterion(saliency_map, gtruths[idx])
 
+            if TEMPORAL:
+                state = repackage_hidden(state)
 
             # Keep score
             accumulated_losses.append(loss.data)

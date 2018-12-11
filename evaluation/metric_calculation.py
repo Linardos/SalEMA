@@ -9,8 +9,11 @@ import pickle
 import datetime
 
 gt_directory = "/imatge/lpanagiotis/work/DHF1K/maps"
-sm_directory = "/imatge/lpanagiotis/work/DHF1K/SGplus_predictions"
+#sm_directory = "/imatge/lpanagiotis/work/DHF1K/SGplus_predictions"
+#sm_directory = "/imatge/lpanagiotis/work/DHF1K/SG_predictions"
+sm_directory = "/imatge/lpanagiotis/work/DHF1K/SGtuned_predictions"
 
+print("Now evaluating on {}".format(sm_directory))
 continue_calculations = False
 
 if continue_calculations:

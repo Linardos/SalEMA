@@ -309,7 +309,7 @@ class SalGANplus(nn.Module):
 
 class SalGANmid(nn.Module):
 
-    def __init__(self, seed_init, use_gpu=True):
+    def __init__(self, seed_init, freeze= True, use_gpu=True):
         super(SalGANmid,self).__init__()
 
         self.use_gpu = use_gpu
@@ -317,7 +317,7 @@ class SalGANmid(nn.Module):
         original_vgg16 = vgg16()
 
         # select only convolutional layers
-        self.salganEncoder = torch.nn.Sequential(*list(original_vgg16.features)[:30]) #reduce from 30?
+        encoder = torch.nn.Sequential(*list(original_vgg16.features)[:30]) #reduce from 30?
         #print(self.salganEncoder)
         # define decoder based on VGG16 (inverse order and Upsampling layers)
         decoder_list=[
@@ -361,7 +361,8 @@ class SalGANmid(nn.Module):
         ]
 
         decoder = torch.nn.Sequential(*decoder_list)
-
+        self.salgan = torch.nn.Sequential(*(list(encoder.children())+list(decoder.children())))
+        assert(str(encoder)==str(self.salgan[:30]))
         # assamble the full architecture encoder-decoder
         self.salganDecoder = torch.nn.Sequential(*(list(decoder.children())))
         #print(self.salgan)
@@ -371,15 +372,97 @@ class SalGANmid(nn.Module):
         self.Gates = nn.Conv2d(in_channels = self.input_size + self.hidden_size, out_channels = 4 * self.hidden_size, kernel_size = (3, 3), padding = 1) #padding 1 to preserve HxW dimensions
 
 
-        for param in self.Gates.parameters():
-            torch.manual_seed(seed_init)
-            nn.init.normal_(param)
+        # Initialize weights of ConvLSTM
+
+        torch.manual_seed(seed_init)
+        for name, param in self.Gates.named_parameters():
+                if "weight" in name:
+                    nn.init.xavier_normal_(param)
+                elif "bias" in name:
+                    nn.init.constant_(param, 0)
+                else:
+                    print("There is some uninitiallized parameter. Check your parameters and try again.")
+                    exit()
+
+        # Freeze SalGAN
+        if freeze:
+            for child in self.salgan.children():
+                for param in child.parameters():
+                    param.requires_grad = False
+            """
+            for child in self.salganEncoder.children():
+                for param in child.parameters():
+                    param.requires_grad = False
+            for child in self.salganDecoder.children():
+                for param in child.parameters():
+                    param.requires_grad = False
+            """
+
+
+    def thaw(self, epoch, optimizer):
+
+        """
+        A function to gradually unfreeze layers.
+
+        The requires_grad of the corresponding layers is switched to True and then the new parameters are added to the optimizer.
+
+        (https://discuss.pytorch.org/t/how-the-pytorch-freeze-network-in-some-layers-only-the-rest-of-the-training/7088/3)
+
+        """
+
+        if epoch < 2:
+            return optimizer
+
+        elif epoch < 3:
+            for child in list(self.salgan.children())[-5:-1]:
+                for name, param in child.named_parameters():
+                    param.requires_grad = True
+                    optimizer.add_param_group({"params": param})
+
+            return optimizer
+
+        elif epoch < 4:
+            for child in list(self.salgan.children())[-10:-5]:
+                for name, param in child.named_parameters():
+                    param.requires_grad = True
+                    optimizer.add_param_group({"params": param})
+
+            return optimizer
+
+        elif epoch < 5:
+            for child in list(self.salgan.children())[-15:-10]:
+                for name, param in child.named_parameters():
+                    param.requires_grad = True
+                    optimizer.add_param_group({"params": param})
+
+            return optimizer
+
+        elif epoch == 5:
+            for child in list(self.salgan.children())[0:-15]:
+                for name, param in child.named_parameters():
+                    param.requires_grad = True
+                    optimizer.add_param_group({"params": param})
+
+            return optimizer
+
+        else:
+            return optimizer
+
+    def print_layers(self):
+
+        for child in self.salgan.children():
+            print("{}".format(child))
+            for name, param in child.named_parameters():
+                print("For {} the requires_grad is {}".format(name, param.requires_grad))
+
+        print("ConvLSTM")
+        for name, param in self.Gates.named_parameters():
+            print("For {} the requires_grad is {}".format(name, param.requires_grad))
 
 
     def forward(self, input_, prev_state=None):
 
-        x = self.salganEncoder(input_)
-        #y = self.salganDecoder(x)
+        x = self.salgan[:30](input_) # Encoder
         #print("Without ConvLSTM output: {}".format(y.size())) #Verdict: ConvLSTM irrelevant to size discrepancy
         # get batch and spatial sizes
         #print("Before ConvLSTM {}".format(x.size()))
@@ -435,6 +518,9 @@ class SalGANmid(nn.Module):
         state = [hidden,cell]
 
         #print("After ConvLSTM {}".format(cell.size()))
-        saliency_map = self.salganDecoder(cell)
+        saliency_map = self.salgan[30:](cell) # Decoder
         #print(saliency_map.size())
         return (hidden, cell), saliency_map
+
+if __name__ == '__main__':
+    model = SalGANmid(seed_init=65)
