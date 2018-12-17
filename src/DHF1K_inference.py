@@ -20,12 +20,14 @@ clip_length = 10 #with 10 clips the loss seems to reach zero very fast
 number_of_videos = 700 # DHF1K offers 700 labeled videos, the other 300 are held back by the authors
 #pretrained_model = './SalGANplus.pt'
 #pretrained_model = '/imatge/lpanagiotis/work/SalGANmore/model_weights/gen_model.pt' # Vanilla SalGAN
-pretrained_model = './SalGAN.pt'
+#pretrained_model = './SalGAN.pt'
+pretrained_model = './SalGANmid.pt'
 frame_size = (192, 256)
 
 #dst = "/imatge/lpanagiotis/work/DHF1K/SGplus_predictions"
 #dst = "/imatge/lpanagiotis/work/DHF1K/SG_predictions"
-dst = "/imatge/lpanagiotis/work/DHF1K/SGtuned_predictions"
+#dst = "/imatge/lpanagiotis/work/DHF1K/SGtuned_predictions"
+dst = "/imatge/lpanagiotis/work/DHF1K/SGmid_predictions"
 # Parameters
 params = {'batch_size': 1, # number of videos / batch, I need to implement padding if I want to do more than 1, but with DataParallel it's quite messy
           'num_workers': 4,
@@ -67,6 +69,23 @@ def main():
 
         model.load_state_dict(checkpoint, strict=True)
         print("Pre-trained model SalGANplus loaded succesfully")
+
+        TEMPORAL = True
+
+    elif pretrained_model == './SalGANmid.pt':
+
+        model = SalGANmore.SalGANmid(seed_init=65, freeze=False)
+
+        temp = torch.load(pretrained_model)['state_dict']
+        # Because of dataparallel there is contradiction in the name of the keys so we need to remove part of the string in the keys:.
+        from collections import OrderedDict
+        checkpoint = OrderedDict()
+        for key in temp.keys():
+            new_key = key.replace("module.","")
+            checkpoint[new_key]=temp[key]
+
+        model.load_state_dict(checkpoint, strict=True)
+        print("Pre-trained model SalGANmid loaded succesfully")
 
         TEMPORAL = True
 

@@ -7,6 +7,7 @@ with open('to_plot.pkl', 'rb') as handle:
 
     to_plot = pickle.load(handle)
 
+to_plot['epoch_ticks'].pop(-1)
 plt.subplot(111)
 plt.plot(to_plot['epoch_ticks'], to_plot['train_losses'], label = "Training Loss")
 plt.plot(to_plot['epoch_ticks'], to_plot['val_losses'], label = "Validation Loss")
