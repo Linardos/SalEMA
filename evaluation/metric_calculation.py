@@ -76,6 +76,7 @@ def inner_worker(n, sAUC_extramap, packed, gt_path, sm_path): #packed should be 
 
     saliency_map_norm = normalize_map(saliency_map) # The functions are a bit haphazard. Some have normalization within and some do not.
 
+    """
     AUC_SHUF = auc_shuff(saliency_map_norm, ground_truth, other_map = ground_truth)
     return AUC_SHUF
     """
@@ -92,7 +93,6 @@ def inner_worker(n, sAUC_extramap, packed, gt_path, sm_path): #packed should be 
              NSS,
              CC,
              SIM )
-    """
 
 start = datetime.datetime.now().replace(microsecond=0)
 for i in range(1, NUMBER_OF_VIDEOS+1):
@@ -126,6 +126,7 @@ for i in range(1, NUMBER_OF_VIDEOS+1):
     from joblib import Parallel, delayed
     metric_list = Parallel(n_jobs=8)(delayed(inner_worker)(n, sAUC_extramap , packed=packed, gt_path=gt_path, sm_path=sm_path) for n, packed in enumerate(pack)) #run 8 frames simultaneously
 
+"""
     aucs_mean = np.mean(metric_list)
     print("AUC-SHUFFLED is {}".format(aucs_mean))
     print("Time elapsed so far: {}".format(datetime.datetime.now().replace(microsecond=0)-start))
