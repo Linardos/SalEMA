@@ -13,7 +13,7 @@ output_dir = "./DHF1K_videos"
 video_nums = [2, 5, 10, 50, 100, 300, 600]
 
 #function that makes the video - change fps if needed
-def make_video(images, output, fps=6, size=None,
+def make_video(src, images, output, fps=6, size=None,
                is_color=True, format="XVID"):
     """
     Create a video from a list of images.
@@ -33,6 +33,7 @@ def make_video(images, output, fps=6, size=None,
     fourcc = VideoWriter_fourcc(*format)
     vid = None
     for image in images:
+        image = os.path.join(src, image)
         if not os.path.exists(image):
             raise FileNotFoundError(image)
         img = imread(image)
@@ -47,7 +48,7 @@ def make_video(images, output, fps=6, size=None,
 
 def output_video(src, dst, num):
     if not os.path.exists(dst):
-        os.mkdir(dst)
+        os.makedirs(dst)
     else:
         print("Be warned, you are about to write on an existing folder {}. If this is not intentional cancel now.".format(dst))
 
@@ -57,16 +58,15 @@ def output_video(src, dst, num):
     images = os.listdir(image_dir)
     images_ordered = sorted(images, key = lambda x: int(x.split(".")[0]) )
 
-
     #call the function - change fps if needed
-    make_video(images_ordered, output = video_dir, fps=6, size=None,
+    make_video(image_dir, images_ordered, output = video_dir, fps=6, size=None,
            is_color=True, format="XVID")
 
 if __name__ == "__main__":
 
     for num in video_nums:
         print("Now accumulating frames into videos for sample number {}".format(num))
-        output_video(src=data_dir, dst=os.path.join(output_dir, "data"), num)
-        output_video(src=gt_dir, dst=os.path.join(output_dir, "ground_truth"), num)
-        output_video(src=sm_dir, dst=os.path.join(output_dir, sm_subdir), num)
+        output_video(src=data_dir, dst=os.path.join(output_dir, "data"), num=num)
+        output_video(src=gt_dir, dst=os.path.join(output_dir, "ground_truth"), num=num)
+        output_video(src=sm_dir, dst=os.path.join(output_dir, sm_subdir), num=num)
         print("Videos related to sample number {} created".format(num))
