@@ -27,12 +27,12 @@ plot_every = 1
 pretrained_model = None #This refers to a pretrained model beyond SalGAN. In default, we are loading the SalGAN weights that were pretrained on SALICON via adversarial training..
 new_model = 'SalGANplus.pt'
 clip_length = 10
-number_of_videos = 700 # DHF1K offers 700 labeled videos, the other 300 are held back by the authors
+number_of_videos = 5 # DHF1K offers 700 labeled videos, the other 300 are held back by the authors
 
 TEMPORAL = True
 FREEZE = True
-#SALGAN_WEIGHTS = 'model_weights/gen_model.pt' # SalGAN weights ported to pytorch
-SALGAN_WEIGHTS = 'model_weights/salgan_salicon.pt' # Weights tuned further by Juanjo
+SALGAN_WEIGHTS = 'model_weights/gen_model.pt' # SalGAN weights ported to pytorch
+#SALGAN_WEIGHTS = 'model_weights/salgan_salicon.pt' # Weights tuned further by Juanjo
 #CONV_LSTM_WEIGHTS = './SalConvLSTM.pt' #These are not relevant in this problem after all, SalGAN was trained on a range of 0-255, the ConvLSTM was trained on a 0-1 range so they are incompatible.
 #writer = SummaryWriter('./log') #Tensorboard, uncomment all lines containing writer if you wish to use this visualization tool
 
