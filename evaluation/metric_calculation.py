@@ -166,11 +166,11 @@ Nss = np.mean([y[2] for y in final_metric_list])
 Cc = np.mean([y[3] for y in final_metric_list])
 Sim = np.mean([y[4] for y in final_metric_list])
 
+print("Evaluation on directory {} finished.".format(sm_directory))
 print("Final average of metrics is:")
 print("AUC-JUDD is {}".format(Aucj))
 print("AUC-SHUFFLED is {}".format(Aucs))
 print("NSS is {}".format(Nss))
 print("CC is {}".format(Cc))
 print("SIM is {}".format(Sim))
-"""
 

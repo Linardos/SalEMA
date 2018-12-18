@@ -22,17 +22,17 @@ learning_rate = 0.000001 #
 decay_rate = 0.1
 momentum = 0.9
 weight_decay = 1e-4
-epochs = 6
+epochs = 7
 plot_every = 1
-pretrained_model = None #This refers to a pretrained model beyond SalGAN. In default, we are loading the SalGAN weights that were pretrained on SALICON via adversarial training..
+pretrained_model = None #This refers to a pretrained model beyond SalGAN. In any case we are loading pretrained SalGAN weights.
 new_model = 'SalGANplus.pt'
 clip_length = 10
-number_of_videos = 5 # DHF1K offers 700 labeled videos, the other 300 are held back by the authors
+number_of_videos = 700 # DHF1K offers 700 labeled videos, the other 300 are held back by the authors
 
 TEMPORAL = True
 FREEZE = True
-SALGAN_WEIGHTS = 'model_weights/gen_model.pt' # SalGAN weights ported to pytorch
-#SALGAN_WEIGHTS = 'model_weights/salgan_salicon.pt' # Weights tuned further by Juanjo
+#SALGAN_WEIGHTS = 'model_weights/gen_model.pt'
+SALGAN_WEIGHTS = 'model_weights/salgan_salicon.pt'
 #CONV_LSTM_WEIGHTS = './SalConvLSTM.pt' #These are not relevant in this problem after all, SalGAN was trained on a range of 0-255, the ConvLSTM was trained on a 0-1 range so they are incompatible.
 #writer = SummaryWriter('./log') #Tensorboard, uncomment all lines containing writer if you wish to use this visualization tool
 
@@ -88,9 +88,6 @@ def main(params = params):
     elif new_model == 'SalGANmid.pt':
         model = SalGANmore.SalGANmid(seed_init=65, freeze=FREEZE)
         print("Initialized {}".format(new_model))
-    elif new_model == 'SalGANdouble.pt':
-        model = SalGANmore.SalGANdouble(seed_init=65, freeze=FREEZE)
-        print("Initialized {}".format(new_model))
     elif new_model == 'SalGAN.pt':
         model = SalGANmore.SalGAN()
         print("Initialized {}".format(new_model))
@@ -112,9 +109,6 @@ def main(params = params):
         elif new_model == 'SalGANmid.pt':
             optimizer = torch.optim.Adam([{'params': model.Gates.parameters()}], learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=weight_decay)
 
-        elif new_model == 'SalGANdouble.pt':
-            optimizer = torch.optim.Adam([{'params': model.GatesE.parameters()}, {'params': model.GatesD.parameters()},{'params': model.final_convs.parameters()}], learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=weight_decay)
-
     else:
         optimizer = torch.optim.Adam(model.parameters(), learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=weight_decay)
 
@@ -123,7 +117,12 @@ def main(params = params):
 
         # Load the weights of salgan generator.
         # By setting strict to False we allow the model to load only the matching layers' weights
-        model.salgan.load_state_dict(torch.load(SALGAN_WEIGHTS), strict=False)
+        if SALGAN_WEIGHTS == 'model_weights/gen_model.pt':
+            model.salgan.load_state_dict(torch.load(SALGAN_WEIGHTS), strict=False)
+        else:
+            model.salgan.load_state_dict(torch.load(SALGAN_WEIGHTS)['state_dict'], strict=False)
+
+
         start_epoch = 1
 
     else:
@@ -142,7 +141,6 @@ def main(params = params):
     model = nn.DataParallel(model).cuda()
     cudnn.benchmark = True #https://discuss.pytorch.org/t/what-does-torch-backends-cudnn-benchmark-do/5936
     criterion = criterion.cuda()
-
     # =================================================
     # ================== Training =====================
 
@@ -260,7 +258,6 @@ def train(train_loader, model, criterion, optimizer, epoch, n_iter):
         start = datetime.datetime.now().replace(microsecond=0)
         print("Number of clips for video {} : {}".format(i,len(video)))
         state = None # Initially no hidden state
-        state_E, state_D = None, None
         for j, (clip, gtruths) in enumerate(video):
 
             n_iter+=j
@@ -283,10 +280,7 @@ def train(train_loader, model, criterion, optimizer, epoch, n_iter):
                     #print(clip[idx].size())
 
                     # Compute output
-                    if new_model == "SalGANdouble.pt":
-                        state_E, state_D, saliency_map = model.forward(input_ = clip[idx], prev_state = (state_E, state_D))
-                    else:
-                        state, saliency_map = model.forward(input_ = clip[idx], prev_state = state) # Based on the number of epoch the model will unfreeze deeper layers moving on to shallow ones
+                    state, saliency_map = model.forward(input_ = clip[idx], prev_state = state) # Based on the number of epoch the model will unfreeze deeper layers moving on to shallow ones
 
                     saliency_map = saliency_map.squeeze(0) # Target is 3 dimensional (grayscale image)
                     if saliency_map.size() != gtruths[idx].size():
@@ -316,11 +310,7 @@ def train(train_loader, model, criterion, optimizer, epoch, n_iter):
                 optimizer.step()
 
                 # Repackage to avoid backpropagating further through time
-                if new_model == "SalGANdouble.pt":
-                    state_E = repackage_hidden(state_E)
-                    state_D = repackage_hidden(state_D)
-                else:
-                    state = repackage_hidden(state)
+                state = repackage_hidden(state)
 
 
             else:
@@ -336,7 +326,7 @@ def train(train_loader, model, criterion, optimizer, epoch, n_iter):
                     accumulated_losses.append(loss.data)
 
             # Visualize some of the data
-            if i%50==0 and j == 5:
+            if i%100==0 and j == 5:
 
                 #writer.add_image('Frame', clip[idx], n_iter)
                 #writer.add_image('Gtruth', gtruths[idx], n_iter)
@@ -372,7 +362,6 @@ def validate(val_loader, model, criterion, epoch):
     for i, video in enumerate(val_loader):
         accumulated_losses = []
         state = None # Initially no hidden state
-        state_E, state_D = None, None
         for j, (clip, gtruths) in enumerate(video):
 
             clip = Variable(clip.type(dtype).transpose(0,1), requires_grad=False)
@@ -383,10 +372,7 @@ def validate(val_loader, model, criterion, epoch):
                 #print(clip[idx].size()) needs unsqueeze
                 # Compute output
                 if TEMPORAL:
-                    if new_model == "SalGANdouble.pt":
-                        state_E, state_D, saliency_map = model.forward(clip[idx], (state_E, state_D))
-                    else:
-                        state, saliency_map = model.forward(clip[idx], state)
+                    state, saliency_map = model.forward(clip[idx], state)
                 else:
                     saliency_map = model.forward(clip[idx])
 
@@ -400,11 +386,7 @@ def validate(val_loader, model, criterion, epoch):
                 loss = loss + criterion(saliency_map, gtruths[idx])
 
             if TEMPORAL:
-                if new_model == "SalGANdouble.pt":
-                    state_E = repackage_hidden(state_E)
-                    state_D = repackage_hidden(state_D)
-                else:
-                    state = repackage_hidden(state)
+                state = repackage_hidden(state)
 
             # Keep score
             accumulated_losses.append(loss.data)
