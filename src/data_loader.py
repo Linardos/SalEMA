@@ -121,3 +121,78 @@ class DHF1K_frames(data.Dataset):
 
 
         return packed
+
+
+
+
+# DataLoader for inference Works for EgoMon and GTEA
+class Ego_frames(data.Dataset):
+
+  def __init__(self, clip_length, frames_path = "/imatge/lpanagiotis/work/Egomon/frames", resolution = None):
+
+        self.ImageNet_mean = [103.939, 116.779, 123.68]
+        self.resolution = resolution
+        self.cl = clip_length
+        self.frames_path = frames_path # in our case it's salgan saliency maps
+
+        self.video_dict = {}
+
+        start = datetime.datetime.now().replace(microsecond=0) # Gives accurate human readable time, rounded down not to include too many decimals
+        activities_folders = os.listdir(frames_path)
+        self.match_i_to_act = {}
+        for i, activity in enumerate(activities_folders):
+            self.match_i_to_act[i] = activity
+
+            complete_path = os.path.join(frames_path, activity)
+            frame_files = os.listdir(complete_path)
+
+            frame_files_sorted = sorted(frame_files)
+            #print(frame_files_sorted[0:30]) looks good
+            # a list of lists
+            self.video_dict[activity]=frame_files_sorted
+
+            print("Frames for {} organized.".format(activity))
+            print("Time elapsed so far: {}".format(datetime.datetime.now().replace(microsecond=0)-start))
+
+
+  def __len__(self):
+        'Denotes the total number of samples'
+        return len(self.video_dict.keys())
+
+  def __getitem__(self, video_index):
+
+        activity = self.match_i_to_act[video_index]
+        'Generates one sample of data'
+        # Select sample video (frame list), in our case saliency map list
+        frames = self.video_dict[activity]
+
+        data = []
+        frame_names = []
+        packed = []
+        for i, frame in enumerate(frames):
+          # Load data
+          path_to_frame = os.path.join(self.frames_path, activity, frame)
+
+          X = cv2.imread(path_to_frame)
+          if self.resolution!=None:
+            X = cv2.resize(X, (self.resolution[1], self.resolution[0]), interpolation=cv2.INTER_AREA)
+          X = X.astype(np.float32)
+          X -= self.ImageNet_mean
+          #X = (X-np.min(X))/(np.max(X)-np.min(X))
+          X = torch.FloatTensor(X)
+          X = X.permute(2,0,1) # swap channel dimensions
+
+          data.append(X.unsqueeze(0))
+          frame_names.append(frame)
+
+          if (i+1)%self.cl == 0 or i == (len(frames)-1):
+            #print(np.array(data).shape) #looks okay
+
+            data_tensor = torch.cat(data,0) #bug was actually here
+            packed.append((frame_names, data_tensor))
+            data = []
+            frame_names = []
+
+        #print("Maybe inside here")
+
+        return packed

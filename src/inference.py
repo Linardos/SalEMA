@@ -10,41 +10,62 @@ import torch.backends.cudnn as cudnn
 from torch import nn
 from torch.utils import data
 from torch.autograd import Variable
-from data_loader import DHF1K_frames
+from data_loader import DHF1K_frames, Ego_frames
 
 dtype = torch.FloatTensor
 if torch.cuda.is_available():
     dtype = torch.cuda.FloatTensor
 
+dataset_name = "Egomon"
 clip_length = 10 #with 10 clips the loss seems to reach zero very fast
 number_of_videos = 700 # DHF1K offers 700 labeled videos, the other 300 are held back by the authors
 #pretrained_model = './SalGANplus.pt'
 #pretrained_model = '/imatge/lpanagiotis/work/SalGANmore/model_weights/gen_model.pt' # Vanilla SalGAN
-#pretrained_model = './SalGAN.pt'
-pretrained_model = './SalGANmid.pt'
+pretrained_model = './SalGAN.pt'
+#pretrained_model = './SalGANplus.pt'
+#pretrained_model = './SalGANmid.pt'
 frame_size = (192, 256)
 
-#dst = "/imatge/lpanagiotis/work/DHF1K/SGplus_predictions"
-#dst = "/imatge/lpanagiotis/work/DHF1K/SG_predictions"
-#dst = "/imatge/lpanagiotis/work/DHF1K/SGtuned_predictions"
-dst = "/imatge/lpanagiotis/work/DHF1K/SGmid_predictions"
+#=============== prediction destinations ===================
+
+#dst = "/imatge/lpanagiotis/work/{}/SGplus_predictions".format(dataset_name)
+#dst = "/imatge/lpanagiotis/work/{}/SG_predictions".format(dataset_name)
+dst = "/imatge/lpanagiotis/work/{}/SGtuned_predictions".format(dataset_name)
+#dst = "/imatge/lpanagiotis/work/{}/SGmid_predictions".format(dataset_name)
+#dst = "/imatge/lpanagiotis/work/{}/SGplus_predictions_J".format(dataset_name)
 # Parameters
+
+#===========================================================
+
 params = {'batch_size': 1, # number of videos / batch, I need to implement padding if I want to do more than 1, but with DataParallel it's quite messy
           'num_workers': 4,
           'pin_memory': True}
 
-def main():
+def main(dataset_name=dataset_name):
 
     # =================================================
     # ================ Data Loading ===================
 
     #Expect Error if either validation size or train size is 1
-    dataset = DHF1K_frames(
-        number_of_videos = number_of_videos,
-        clip_length = clip_length,
-        split = None,
-        resolution = frame_size)
-         #add a parameter node = training or validation
+    if dataset_name == "DHF1K":
+        print("Commencing inference for dataset {}".format(dataset_name))
+        dataset = DHF1K_frames(
+            frames_path = "/imatge/lpanagiotis/work/DHF1K/frames",
+            gt_path = "/imatge/lpanagiotis/work/DHF1K/maps",
+            number_of_videos = number_of_videos,
+            clip_length = clip_length,
+            split = None,
+            resolution = frame_size)
+             #add a parameter node = training or validation
+
+    elif dataset_name == "Egomon":
+        print("Commencing inference for dataset {}".format(dataset_name))
+        dataset = Ego_frames(
+            frames_path = "/imatge/lpanagiotis/work/Egomon/frames",
+            clip_length = clip_length,
+            resolution = frame_size)
+        activity = dataset.match_i_to_act
+
     print("Size of test set is {}".format(len(dataset)))
 
     loader = data.DataLoader(dataset, **params)
@@ -128,30 +149,57 @@ def main():
     model.eval()
 
     for i, video in enumerate(loader):
-        video_dst = os.path.join(dst, str(i+1))
-        if not os.path.exists(video_dst):
-            os.mkdir(video_dst)
 
         count = 0
         state = None # Initially no hidden state
-        for j, (clip, gtruths) in enumerate(video):
-            clip = Variable(clip.type(dtype).transpose(0,1), requires_grad=False)
-            gtruths = Variable(gtruths.type(dtype).transpose(0,1), requires_grad=False)
-            for idx in range(clip.size()[0]):
-                # Compute output
+
+        if dataset_name == "DHF1K":
+
+            video_dst = os.path.join(dst, str(i+1))
+            if not os.path.exists(video_dst):
+                os.mkdir(video_dst)
+
+            for j, (clip, _) in enumerate(video):
+                clip = Variable(clip.type(dtype).transpose(0,1), requires_grad=False)
+                for idx in range(clip.size()[0]):
+                    # Compute output
+                    if TEMPORAL:
+                        state, saliency_map = model.forward(input_ = clip[idx], prev_state = state)
+                    else:
+                        saliency_map = model.forward(input_ = clip[idx])
+
+                    count+=1
+                    saliency_map = saliency_map.squeeze(0)
+
+                    post_process_saliency_map = (saliency_map-torch.min(saliency_map))/(torch.max(saliency_map)-torch.min(saliency_map))
+                    utils.save_image(post_process_saliency_map, os.path.join(video_dst, "{}.png".format(str(count))))
+
                 if TEMPORAL:
-                    state, saliency_map = model.forward(input_ = clip[idx], prev_state = state)
-                else:
-                    saliency_map = model.forward(input_ = clip[idx])
+                    state = repackage_hidden(state)
 
-                count+=1
-                saliency_map = saliency_map.squeeze(0)
+        elif dataset_name == "Egomon":
 
-                post_process_saliency_map = (saliency_map-torch.min(saliency_map))/(torch.max(saliency_map)-torch.min(saliency_map))
-                utils.save_image(post_process_saliency_map, os.path.join(video_dst, "{}.png".format(str(count))))
+            video_dst = os.path.join(dst, activity[i])
+            if not os.path.exists(video_dst):
+                os.mkdir(video_dst)
 
-            if TEMPORAL:
-                state = repackage_hidden(state)
+            for j, (frame_names, clip) in enumerate(video):
+                clip = Variable(clip.type(dtype).transpose(0,1), requires_grad=False)
+                for idx in range(clip.size()[0]):
+                    # Compute output
+                    if TEMPORAL:
+                        state, saliency_map = model.forward(input_ = clip[idx], prev_state = state)
+                    else:
+                        saliency_map = model.forward(input_ = clip[idx])
+
+                    count+=1
+                    saliency_map = saliency_map.squeeze(0)
+
+                    post_process_saliency_map = (saliency_map-torch.min(saliency_map))/(torch.max(saliency_map)-torch.min(saliency_map))
+                    utils.save_image(post_process_saliency_map, os.path.join(video_dst, frame_names[idx][0]))
+
+                if TEMPORAL:
+                    state = repackage_hidden(state)
 
         print("Video {} done".format(i+1))
 

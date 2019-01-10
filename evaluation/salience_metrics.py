@@ -28,8 +28,8 @@ def normalize_map(s_map):
     return norm_s_map
 
 def discretize_gt(gt):
-    import warnings
-    warnings.warn('can improve the way GT is discretized')
+    #import warnings
+    #warnings.warn('can improve the way GT is discretized')
     return gt/255
 
 def auc_judd(s_map,gt):
