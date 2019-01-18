@@ -13,9 +13,9 @@ from PIL import Image
 gt_directory = "/imatge/lpanagiotis/work/Egomon/maps"
 #sm_directory = "/imatge/lpanagiotis/work/Egomon/SGplus_predictions"
 #sm_directory = "/imatge/lpanagiotis/work/Egomon/SG_predictions"
-sm_directory = "/imatge/lpanagiotis/work/Egomon/SGtuned_predictions"
+#sm_directory = "/imatge/lpanagiotis/work/Egomon/SGtuned_predictions"
 #sm_directory = "/imatge/lpanagiotis/work/Egomon/SGplus_predictions_J"
-#sm_directory = "/imatge/lpanagiotis/work/Egomon/SGmid_predictions" # This is with JJ weights
+sm_directory = "/imatge/lpanagiotis/work/Egomon/SGmid_predictions" # This is with JJ weights
 DHF1K_directory = "/imatge/lpanagiotis/work/DHF1K/maps"
 RESCALE_GTs = True # It seems rescaling the saliency map completely screws the results, whereas scaling the ground truths doesnt. In the DHF1K we saw that there is no significant discrepancy between the results if you do this.
 print("Now evaluating on {}".format(sm_directory))
@@ -30,11 +30,10 @@ else:
     final_metric_list = []
 
 
-def sAUC_sampler(video_number, M=50, DHF1K_directory=DHF1K_directory):
+def sAUC_sampler(M=50, DHF1K_directory=DHF1K_directory):
     # A sampler for the shuffled AUC metric. From the ground truths sample images at random; then aggregate them to feed into sAUC.
 
     videos = list(range(1,701))
-    videos.remove(video_number) # Remove the video being evaluated.
     video_sample_inds = np.random.choice(videos, M, replace=False)
 
     for i in range(M):
@@ -96,7 +95,7 @@ def inner_worker(n, sAUC_extramap, packed, gt_path, sm_path): #packed should be 
              NSS )
 
 start = datetime.datetime.now().replace(microsecond=0)
-for i in range(1, NUMBER_OF_VIDEOS+1):
+for i in range(0, NUMBER_OF_VIDEOS):
 
     activities = os.listdir(gt_directory)
     if len(activities) < NUMBER_OF_VIDEOS:
@@ -118,7 +117,7 @@ for i in range(1, NUMBER_OF_VIDEOS+1):
     pack = zip(gt_files_sorted, sm_files_sorted)
     print("Files related to video {} sorted.".format(i))
 
-    sAUC_extramap = sAUC_sampler(video_number=i)
+    sAUC_extramap = sAUC_sampler()
     #Uncomment this segment if you want to debug something, so as to avoid parallel calculations and exit at 5 iterations.
     """
     for n, packed in enumerate(pack):
@@ -136,7 +135,7 @@ for i in range(1, NUMBER_OF_VIDEOS+1):
     aucs_mean = np.mean([x[1] for x in metric_list])
     nss_mean = np.mean([x[2] for x in metric_list])
 
-    print("For video number {} the metrics are:".format(i))
+    print("For video {} the metrics are:".format(activities[i]))
     print("AUC-JUDD is {}".format(aucj_mean))
     print("AUC-SHUFFLED is {}".format(aucs_mean))
     print("NSS is {}".format(nss_mean))

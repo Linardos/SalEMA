@@ -10,14 +10,15 @@ import datetime
 import torch
 from PIL import Image
 
-gt_directory = "/imatge/lpanagiotis/work/DHF1K/maps"
-#sm_directory = "/imatge/lpanagiotis/work/DHF1K/SGplus_predictions"
-#sm_directory = "/imatge/lpanagiotis/work/DHF1K/SG_predictions"
-sm_directory = "/imatge/lpanagiotis/work/DHF1K/SGtuned_predictions"
-sm_directory = "/imatge/lpanagiotis/work/DHF1K/SGplus_predictions_J"
-#sm_directory = "/imatge/lpanagiotis/work/DHF1K/SGmid_predictions" # This is with JJ weights
+GT_DIR = "/imatge/lpanagiotis/work/DHF1K/maps"
+FIX_DIR = "/imatge/lpanagiotis/work/DHF1K/fixations"
+#SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGplus_predictions"
+#SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SG_predictions"
+SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGtuned_predictions"
+SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGplus_predictions_J"
+#SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGmid_predictions" # This is with JJ weights
 RESCALE_GTs = False
-print("Now evaluating on {}".format(sm_directory))
+print("Now evaluating on {}".format(SM_DIR))
 continue_calculations = False
 
 NUMBER_OF_VIDEOS = 700
@@ -38,7 +39,7 @@ def sAUC_sampler(video_number, M=50):
 
     for i in range(M):
 
-        video_sample = os.path.join(gt_directory, str(video_sample_inds[i]))
+        video_sample = os.path.join(FIX_DIR, str(video_sample_inds[i]))
         frames = os.listdir(video_sample)
         frame_sample = np.random.choice(frames, 1, replace=False)[0]
 
@@ -56,10 +57,11 @@ def sAUC_sampler(video_number, M=50):
     return avg_img
 
 # The directories are named 1-1000 so it should be easy to iterate over them
-def inner_worker(n, sAUC_extramap, packed, gt_path, sm_path): #packed should be a list of tuples (annotation, prediction)
+def inner_worker(n, sAUC_extramap, packed, gt_path, fix_path, sm_path): #packed should be a list of tuples (annotation, prediction)
 
-    gt, sm = packed
+    gt, fix, sm = packed
     ground_truth = cv2.imread(os.path.join(gt_path, gt),cv2.IMREAD_GRAYSCALE)
+    fixation_gt = cv2.imread(os.path.join(fix_path, fix),cv2.IMREAD_GRAYSCALE)
     saliency_map = cv2.imread(os.path.join(sm_path, sm),cv2.IMREAD_GRAYSCALE)
 
 
@@ -83,35 +85,37 @@ def inner_worker(n, sAUC_extramap, packed, gt_path, sm_path): #packed should be 
     return AUC_SHUF
     """
     # Calculate metrics
-    AUC_JUDD = auc_judd(saliency_map_norm, ground_truth)
-    AUC_SHUF = auc_shuff(saliency_map_norm, ground_truth, sAUC_extramap)
-    # the other ones have normalization within:
-    NSS = nss(saliency_map, ground_truth)
-    CC = cc(saliency_map, ground_truth)
-    SIM = similarity(saliency_map, ground_truth)
+    auc_j = auc_judd(saliency_map_norm, fixation_gt)
+    sauc = auc_shuff(saliency_map_norm, fixation_gt, sAUC_extramap)
+    nss = nss(saliency_map_norm, fixation_gt)
+    cc = cc(saliency_map_norm, ground_truth)
+    sim = similarity(saliency_map_norm, ground_truth)
 
-    return ( AUC_JUDD,
-             AUC_SHUF,
-             NSS,
-             CC,
-             SIM )
+    return ( auc_j,
+             sauc,
+             nss,
+             cc,
+             sim )
 
 start = datetime.datetime.now().replace(microsecond=0)
 for i in range(1, NUMBER_OF_VIDEOS+1):
 
     if i == 57: #Some unknown error occurs at this file, skip it
         continue
-    gt_path = os.path.join(gt_directory, str(i))
-    sm_path = os.path.join(sm_directory, str(i))
+    gt_path = os.path.join(GT_DIR, str(i))
+    fix_path = os.path.join(FIX_DIR, str(i))
+    sm_path = os.path.join(SM_DIR, str(i))
 
     gt_files = os.listdir(gt_path)
+    fix_files = os.listdir(fix_path)
     sm_files = os.listdir(sm_path)
 
     video_length = len(gt_files)
     #Now to sort based on their file number. The "key" parameter in sorted is a function based on which the sorting will happen (I use split to exclude the jpg/png from the).
     gt_files_sorted = sorted(gt_files, key = lambda x: int(x.split(".")[0]) )
+    fix_files_sorted = sorted(fix_files, key = lambda x: int(x.split(".")[0]) )
     sm_files_sorted = sorted(sm_files, key = lambda x: int(x.split(".")[0]) )
-    pack = zip(gt_files_sorted, sm_files_sorted)
+    pack = zip(gt_files_sorted, fix_files_sorted, sm_files_sorted)
     print("Files related to video {} sorted.".format(i))
 
     sAUC_extramap = sAUC_sampler(video_number=i)
@@ -126,7 +130,7 @@ for i in range(1, NUMBER_OF_VIDEOS+1):
 
     ##https://stackoverflow.com/questions/35663498/how-do-i-return-a-matrix-with-joblib-python
     from joblib import Parallel, delayed
-    metric_list = Parallel(n_jobs=8)(delayed(inner_worker)(n, sAUC_extramap , packed=packed, gt_path=gt_path, sm_path=sm_path) for n, packed in enumerate(pack)) #run 8 frames simultaneously
+    metric_list = Parallel(n_jobs=8)(delayed(inner_worker)(n, sAUC_extramap , packed=packed, gt_path=gt_path, fix_path = fix_path, sm_path=sm_path) for n, packed in enumerate(pack)) #run 8 frames simultaneously
 
     """
         aucs_mean = np.mean(metric_list)
@@ -167,7 +171,7 @@ Nss = np.mean([y[2] for y in final_metric_list])
 Cc = np.mean([y[3] for y in final_metric_list])
 Sim = np.mean([y[4] for y in final_metric_list])
 
-print("Evaluation on directory {} finished.".format(sm_directory))
+print("Evaluation on directory {} finished.".format(SM_DIR))
 print("Final average of metrics is:")
 print("AUC-JUDD is {}".format(Aucj))
 print("AUC-SHUFFLED is {}".format(Aucs))
