@@ -1,4 +1,4 @@
-from salience_metrics import auc_judd, auc_shuff, cc, nss, similarity, normalize_map
+from salience_metrics import AUC_Judd, AUC_shuffled, CC, NSS, SIM
 """
 DHF1K paper: "we  employ  five  classic  met-rics,  namely  Normalized  Scanpath  Saliency  (NSS),  Sim-ilarity Metric (SIM), Linear Correlation Coefficient (CC),AUC-Judd (AUC-J), and shuffled AUC (s-AUC).""
 """
@@ -14,8 +14,8 @@ GT_DIR = "/imatge/lpanagiotis/work/DHF1K/maps"
 FIX_DIR = "/imatge/lpanagiotis/work/DHF1K/fixations"
 #SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGplus_predictions"
 #SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SG_predictions"
+#SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGplus_predictions_J"
 SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGtuned_predictions"
-SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGplus_predictions_J"
 #SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGmid_predictions" # This is with JJ weights
 RESCALE_GTs = False
 print("Now evaluating on {}".format(SM_DIR))
@@ -60,48 +60,60 @@ def sAUC_sampler(video_number, M=50):
 def inner_worker(n, sAUC_extramap, packed, gt_path, fix_path, sm_path): #packed should be a list of tuples (annotation, prediction)
 
     gt, fix, sm = packed
-    ground_truth = cv2.imread(os.path.join(gt_path, gt),cv2.IMREAD_GRAYSCALE)
-    fixation_gt = cv2.imread(os.path.join(fix_path, fix),cv2.IMREAD_GRAYSCALE)
+    mground_truth = cv2.imread(os.path.join(gt_path, gt),cv2.IMREAD_GRAYSCALE)
+    fground_truth = cv2.imread(os.path.join(fix_path, fix),cv2.IMREAD_GRAYSCALE)
     saliency_map = cv2.imread(os.path.join(sm_path, sm),cv2.IMREAD_GRAYSCALE)
 
 
     if RESCALE_GTs:
         # Avoid doing this in the future. GTs should not be manipulated.
-        #print(np.max(ground_truth))
-        ground_truth = cv2.resize(ground_truth, (saliency_map.shape[1], saliency_map.shape[0]), interpolation=cv2.INTER_AREA)
+        #print(np.max(mground_truth))
+        mground_truth = cv2.resize(mground_truth, (saliency_map.shape[1], saliency_map.shape[0]), interpolation=cv2.INTER_AREA)
         # some error seems to occur, particularly on the first 3 metrics after the resize. CC and SIM are calculated normally. Noticeably the maximum value of 255 changes for the ground truth. It makes sense that this confuses location based metrics that aim to compare fixation points (hence maximum value locations).
 
-        ground_truth[ground_truth==np.max(ground_truth)]=255
+        mground_truth[mground_truth==np.max(mground_truth)]=255
         # Rescaling turned out to cause a mess to the distribution, which results in a mess for the distribution based metrics (CC , SIM). This is evident from the fact that before rescaling the mean is close to 9 but afterwards it's close to 0. It is apparent that rescaling saliency maps down and then up again causes issues and should be avoided.
-        #ground_truth = (ground_truth-np.min(ground_truth))/(np.max(ground_truth)-np.min(ground_truth))
-        #ground_truth = ground_truth*255
+        #mground_truth = (mground_truth-np.min(mground_truth))/(np.max(mground_truth)-np.min(mground_truth))
+        #mground_truth = mground_truth*255
     else:
-        saliency_map = cv2.resize(saliency_map, (ground_truth.shape[1], ground_truth.shape[0]), interpolation=cv2.INTER_LINEAR)
+        saliency_map = cv2.resize(saliency_map, (mground_truth.shape[1], mground_truth.shape[0]), interpolation=cv2.INTER_LINEAR)
 
-    saliency_map_norm = normalize_map(saliency_map) # The functions are a bit haphazard. Some have normalization within and some do not.
+    #saliency_map_norm = normalize(saliency_map) # The functions are a bit haphazard. Some have normalization within and some do not.
 
     """
-    AUC_SHUF = auc_shuff(saliency_map_norm, ground_truth, other_map = ground_truth)
+    AUC_SHUF = auc_shuff(saliency_map_norm, ground_truth, sAUC_extramap = ground_truth)
     return AUC_SHUF
     """
+
+
+
+    mground_truth = cv2.resize(mground_truth, (0,0), fx=0.5, fy=0.5)
+    fground_truth = cv2.resize(fground_truth, (0,0), fx=0.5, fy=0.5)
+    sAUC_extramap = cv2.resize(sAUC_extramap, (0,0), fx=0.5, fy=0.5)
+    saliency_map = cv2.resize(saliency_map, (0,0), fx=0.5, fy=0.5)
+
+    mground_truth = mground_truth.astype(np.float32)
+    fground_truth = fground_truth.astype(np.float32)
+    sAUC_extramap = sAUC_extramap.astype(np.float32)
+    saliency_map = saliency_map.astype(np.float32)
     # Calculate metrics
-    auc_j = auc_judd(saliency_map_norm, fixation_gt)
-    sauc = auc_shuff(saliency_map_norm, fixation_gt, sAUC_extramap)
-    nss = nss(saliency_map_norm, fixation_gt)
-    cc = cc(saliency_map_norm, ground_truth)
-    sim = similarity(saliency_map_norm, ground_truth)
+    auc_j = AUC_Judd(saliency_map, fground_truth)
+    Sauc = AUC_shuffled(saliency_map, fground_truth, sAUC_extramap)
+    Nss = NSS(saliency_map, fground_truth)
+    Cc = CC(saliency_map, mground_truth)
+    sim = SIM(saliency_map, mground_truth)
 
     return ( auc_j,
-             sauc,
-             nss,
-             cc,
+             Sauc,
+             Nss,
+             Cc,
              sim )
 
 start = datetime.datetime.now().replace(microsecond=0)
 for i in range(1, NUMBER_OF_VIDEOS+1):
 
-    if i == 57: #Some unknown error occurs at this file, skip it
-        continue
+    #if i == 57: #Some unknown error occurs at this file, skip it
+    #    continue
     gt_path = os.path.join(GT_DIR, str(i))
     fix_path = os.path.join(FIX_DIR, str(i))
     sm_path = os.path.join(SM_DIR, str(i))
@@ -119,10 +131,10 @@ for i in range(1, NUMBER_OF_VIDEOS+1):
     print("Files related to video {} sorted.".format(i))
 
     sAUC_extramap = sAUC_sampler(video_number=i)
-    """
     #Uncomment this segment if you want to debug something, so as to avoid parallel calculations and exit at 5 iterations.
+    """
     for n, packed in enumerate(pack):
-        a = inner_worker(n, sAUC_extramap, packed=packed, gt_path=gt_path, sm_path=sm_path)
+        a = inner_worker(n, sAUC_extramap, packed=packed, gt_path=gt_path, fix_path = fix_path, sm_path=sm_path)
         print(a)
         if n==5:
             exit()
@@ -132,15 +144,7 @@ for i in range(1, NUMBER_OF_VIDEOS+1):
     from joblib import Parallel, delayed
     metric_list = Parallel(n_jobs=8)(delayed(inner_worker)(n, sAUC_extramap , packed=packed, gt_path=gt_path, fix_path = fix_path, sm_path=sm_path) for n, packed in enumerate(pack)) #run 8 frames simultaneously
 
-    """
-        aucs_mean = np.mean(metric_list)
-        print("AUC-SHUFFLED is {}".format(aucs_mean))
-        print("Time elapsed so far: {}".format(datetime.datetime.now().replace(microsecond=0)-start))
-        final_metric_list.append(aucs_mean)
-    Aucs = np.mean(final_metric_list)
     print("Final average of metrics is:")
-    print("AUC-SHUFFLED is {}".format(Aucs))
-    """
     aucj_mean = np.mean([x[0] for x in metric_list])
     aucs_mean = np.mean([x[1] for x in metric_list])
     nss_mean = np.mean([x[2] for x in metric_list])
