@@ -1,5 +1,5 @@
 # VideoSalGAN-II
-|![Akis](https://imatge-upc.github.io/saliency-2018-videosalgan/assets/authors/AkisLinardos.jpg){:height="700px" width="400px"}|![evamoh](https://raw.githubusercontent.com/imatge-upc/retrieval-2016-lostobject/master/authors/Eva.jpg?token=AKsMd4iuttxHH44mYL3mPpJEtSvXVXF8ks5Xe-AWwA%3D%3D)|![Xavi](https://imatge.upc.edu/web/sites/default/files/styles/medium/public/users/xgiro/photo_1.jpg?itok=6yfro3y7)|
+|![Akis](https://imatge-upc.github.io/saliency-2018-videosalgan/assets/authors/AkisLinardos.jpg?v=4&s=200)|![evamoh](https://raw.githubusercontent.com/imatge-upc/retrieval-2016-lostobject/master/authors/Eva.jpg?token=AKsMd4iuttxHH44mYL3mPpJEtSvXVXF8ks5Xe-AWwA%3D%3D)|![Xavi](https://imatge.upc.edu/web/sites/default/files/styles/medium/public/users/xgiro/photo_1.jpg?itok=6yfro3y7)|
 | ----- | ----- | ----- |
 | Panagiotis Linardos | Eva Mohedano | Xavier Giró-i-Nieto |
 
