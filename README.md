@@ -3,7 +3,12 @@
 This work is an improvement on [VideoSalGAN](https://github.com/imatge-upc/saliency-2018-videosalgan).
 In both of these works, the goal is to explore how a model trained on static images for the task of saliency prediction can be extended to do the same thing on videos. 
 
-The original architecture ([SalGAN](https://imatge-upc.github.io/saliency-salgan-2017/)) is trained on SALICON. Here 
+The original architecture ([SalGAN](https://imatge-upc.github.io/saliency-salgan-2017/)) is trained on SALICON and optimized by a combination of two cost functions, binary cross entropy and adversarial loss. 
+![image](https://raw.githubusercontent.com/imatge-upc/saliency-salgan-2017/junting/figs/fullarchitecture.jpg?token=AFOjyaH8cuBFWpldWWzo_TKVB-zekfxrks5Yc4NQwA%3D%3D)
+
+From this architecture we isolate the trained generator 
+
+Here 
 
 
 | DHF1K	| AUC-J	| s-AUC	| NSS	| CC | SIM |
@@ -12,4 +17,3 @@ The original architecture ([SalGAN](https://imatge-upc.github.io/saliency-salgan
 | SalGAN (Tuned)	| 0.874	| 0.645	| 2.226	| 0.395	| 0.338 |
 | VideoSalGAN-II	| 0.915	| 0.745	| 3.173	| 0.556	| 0.440 |
 
-![image](https://raw.githubusercontent.com/imatge-upc/saliency-salgan-2017/junting/figs/fullarchitecture.jpg?token=AFOjyaH8cuBFWpldWWzo_TKVB-zekfxrks5Yc4NQwA%3D%3D)
