@@ -13,19 +13,22 @@ from PIL import Image
 GT_DIR = "/imatge/lpanagiotis/work/DHF1K/maps"
 FIX_DIR = "/imatge/lpanagiotis/work/DHF1K/fixations"
 #SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGplus_predictions"
-#SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SG_predictions"
 #SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGplus_predictions_J"
-SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGtuned_predictions"
+#SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGtuned_predictions"
 #SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGmid_predictions" # This is with JJ weights
+#SM_DIR = "/imatge/lpanagiotis/projects/saliency/public_html/VideoSalGAN-II"
+SM_DIR = "/imatge/lpanagiotis/work/DHF1K/VideoSalGAN-II"
 RESCALE_GTs = False
 print("Now evaluating on {}".format(SM_DIR))
 continue_calculations = False
 
 NUMBER_OF_VIDEOS = 700
-
+STARTING_VIDEO = 1
 if continue_calculations:
     with open('metrics.txt', 'rb') as handle:
         final_metric_list = pickle.load(handle)
+    STARTING_VIDEO = len(final_metric_list)+1
+
 else:
     final_metric_list = []
 
@@ -110,13 +113,13 @@ def inner_worker(n, sAUC_extramap, packed, gt_path, fix_path, sm_path): #packed 
              sim )
 
 start = datetime.datetime.now().replace(microsecond=0)
-for i in range(1, NUMBER_OF_VIDEOS+1):
+for i in range(STARTING_VIDEO, NUMBER_OF_VIDEOS+1):
 
     #if i == 57: #Some unknown error occurs at this file, skip it
     #    continue
     gt_path = os.path.join(GT_DIR, str(i))
     fix_path = os.path.join(FIX_DIR, str(i))
-    sm_path = os.path.join(SM_DIR, str(i))
+    sm_path = os.path.join(SM_DIR, str(i).zfill(4))
 
     gt_files = os.listdir(gt_path)
     fix_files = os.listdir(fix_path)
@@ -124,9 +127,9 @@ for i in range(1, NUMBER_OF_VIDEOS+1):
 
     video_length = len(gt_files)
     #Now to sort based on their file number. The "key" parameter in sorted is a function based on which the sorting will happen (I use split to exclude the jpg/png from the).
-    gt_files_sorted = sorted(gt_files, key = lambda x: int(x.split(".")[0]) )
-    fix_files_sorted = sorted(fix_files, key = lambda x: int(x.split(".")[0]) )
-    sm_files_sorted = sorted(sm_files, key = lambda x: int(x.split(".")[0]) )
+    gt_files_sorted = sorted(gt_files, key = lambda x: int(x.split(".")[0]))
+    fix_files_sorted = sorted(fix_files, key = lambda x: int(x.split(".")[0]))
+    sm_files_sorted = sorted(sm_files, key = lambda x: int(x.split(".")[0]))
     pack = zip(gt_files_sorted, fix_files_sorted, sm_files_sorted)
     print("Files related to video {} sorted.".format(i))
 
@@ -142,7 +145,7 @@ for i in range(1, NUMBER_OF_VIDEOS+1):
 
     ##https://stackoverflow.com/questions/35663498/how-do-i-return-a-matrix-with-joblib-python
     from joblib import Parallel, delayed
-    metric_list = Parallel(n_jobs=8)(delayed(inner_worker)(n, sAUC_extramap , packed=packed, gt_path=gt_path, fix_path = fix_path, sm_path=sm_path) for n, packed in enumerate(pack)) #run 8 frames simultaneously
+    metric_list = Parallel(n_jobs=4)(delayed(inner_worker)(n, sAUC_extramap , packed=packed, gt_path=gt_path, fix_path = fix_path, sm_path=sm_path) for n, packed in enumerate(pack)) #run 8 frames simultaneously
 
     print("Final average of metrics is:")
     aucj_mean = np.mean([x[0] for x in metric_list])

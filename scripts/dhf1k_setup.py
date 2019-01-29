@@ -8,10 +8,5 @@ vids = sorted(os.listdir(DHF1K_gt_root))
 for vid in vids:
     src_fixations_path = os.path.join(DHF1K_gt_root, vid, "fixation")
     dst_fixations_path = os.path.join("/imatge/lpanagiotis/work/DHF1K/fixations", str(int(vid))) # originally I used integers and not "0001" strings. the latter might be preferable but it's better to be consistent, so.
-    """
     print("Copying fixations from {} to {}...".format(src_fixations_path, dst_fixations_path))
     shutil.copytree(src_fixations_path, dst_fixations_path, ignore="maps")
-    """
-    redundant = os.path.join(dst_fixations_path, "maps")
-    print("Removing {}..".format(redundant))
-    shutil.rmtree(redundant)
