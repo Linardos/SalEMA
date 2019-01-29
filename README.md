@@ -1,4 +1,8 @@
 # VideoSalGAN-II
+||![Xavi](https://imatge.upc.edu/web/sites/default/files/styles/medium/public/users/xgiro/photo_1.jpg?itok=6yfro3y7)|
+| ----- | ----- | ----- |
+| Panagiotis Linardos | Eva Mohedano | Xavier Giró-i-Nieto |
+
 
 This work is an improvement on [VideoSalGAN](https://github.com/imatge-upc/saliency-2018-videosalgan).
 In both of these works, the goal is to explore how a model trained on static images for the task of saliency prediction can be extended to do the same thing on videos. 
