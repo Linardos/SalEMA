@@ -11,3 +11,5 @@ The original architecture ([SalGAN](https://imatge-upc.github.io/saliency-salgan
 | SalGAN (Port) |	0.807 |	0.661 |	1.545	| 0.282 |	0.197 |
 | SalGAN (Tuned)	| 0.874	| 0.645	| 2.226	| 0.395	| 0.338 |
 | VideoSalGAN-II	| 0.915	| 0.745	| 3.173	| 0.556	| 0.440 |
+
+![image](https://raw.githubusercontent.com/imatge-upc/saliency-salgan-2017/junting/figs/fullarchitecture.jpg?token=AFOjyaH8cuBFWpldWWzo_TKVB-zekfxrks5Yc4NQwA%3D%3D)
