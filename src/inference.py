@@ -45,6 +45,7 @@ A = 0.2 :
 #dst = "/imatge/lpanagiotis/work/{}/SGmid_predictions".format(dataset_name)
 #dst = "/imatge/lpanagiotis/work/{}/SGplus_predictions_J".format(dataset_name)
 dst = "/imatge/lpanagiotis/work/{}/SGema_predictions".format(dataset_name)
+dst = "/imatge/lpanagiotis/work/SalGANmore/sample_saliency" #temporary
 # Parameters
 
 #===========================================================
