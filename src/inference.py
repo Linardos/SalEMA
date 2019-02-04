@@ -2,7 +2,7 @@ import cv2
 import os
 import datetime
 import numpy as np
-from model import SalGANmore
+from model import SalGANmore, SalGAN_EMA
 import pickle
 import torch
 from torchvision import transforms, utils
@@ -16,23 +16,30 @@ dtype = torch.FloatTensor
 if torch.cuda.is_available():
     dtype = torch.cuda.FloatTensor
 
-dataset_name = "Egomon"
+dataset_name = "DHF1K"
 clip_length = 10 #with 10 clips the loss seems to reach zero very fast
-number_of_videos = 700 # DHF1K offers 700 labeled videos, the other 300 are held back by the authors
+number_of_videos = 3 # DHF1K offers 700 labeled videos, the other 300 are held back by the authors
 #pretrained_model = './SalGANplus.pt'
 #pretrained_model = '/imatge/lpanagiotis/work/SalGANmore/model_weights/gen_model.pt' # Vanilla SalGAN
-pretrained_model = './SalGAN.pt'
+#pretrained_model = './SalGAN.pt'
+pretrained_model = 'model_weights/salgan_salicon.pt' #JuanJo's weights
 #pretrained_model = './SalGANplus.pt'
 #pretrained_model = './SalGANmid.pt'
 frame_size = (192, 256)
+
+#=============== EMA params ============
+
+EMA = True
+ALPHA = 0.1
 
 #=============== prediction destinations ===================
 
 #dst = "/imatge/lpanagiotis/work/{}/SGplus_predictions".format(dataset_name)
 #dst = "/imatge/lpanagiotis/work/{}/SG_predictions".format(dataset_name)
-dst = "/imatge/lpanagiotis/work/{}/SGtuned_predictions".format(dataset_name)
+#dst = "/imatge/lpanagiotis/work/{}/SGtuned_predictions".format(dataset_name)
 #dst = "/imatge/lpanagiotis/work/{}/SGmid_predictions".format(dataset_name)
 #dst = "/imatge/lpanagiotis/work/{}/SGplus_predictions_J".format(dataset_name)
+dst = "/imatge/lpanagiotis/work/{}/SGema_predictions".format(dataset_name)
 # Parameters
 
 #===========================================================
@@ -127,6 +134,14 @@ def main(dataset_name=dataset_name):
 
         TEMPORAL = False
 
+    elif pretrained_model == 'model_weights/salgan_salicon.pt' and EMA == True:
+
+        model = SalGAN_EMA.SalGAN_EMA(alpha=ALPHA)
+        model.salgan.load_state_dict(torch.load(pretrained_model)['state_dict'])
+        print("Pre-trained model SalBCE loaded succesfully. EMA inference will commence soon.")
+
+        TEMPORAL = True
+
     else:
         model = SalGANmore.SalGAN()
         model.salgan.load_state_dict(torch.load(pretrained_model))
@@ -155,7 +170,7 @@ def main(dataset_name=dataset_name):
 
         if dataset_name == "DHF1K":
 
-            video_dst = os.path.join(dst, str(i+1))
+            video_dst = os.path.join(dst, str(i+1).zfill(4))
             if not os.path.exists(video_dst):
                 os.mkdir(video_dst)
 
@@ -172,7 +187,7 @@ def main(dataset_name=dataset_name):
                     saliency_map = saliency_map.squeeze(0)
 
                     post_process_saliency_map = (saliency_map-torch.min(saliency_map))/(torch.max(saliency_map)-torch.min(saliency_map))
-                    utils.save_image(post_process_saliency_map, os.path.join(video_dst, "{}.png".format(str(count))))
+                    utils.save_image(post_process_saliency_map, os.path.join(video_dst, "{}.png".format(str(count).zfill(4))))
 
                 if TEMPORAL:
                     state = repackage_hidden(state)
