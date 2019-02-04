@@ -30,7 +30,12 @@ frame_size = (192, 256)
 #=============== EMA params ============
 
 EMA = True
-ALPHA = 0.1
+ALPHA = 0.2
+"""
+Qualitative results:
+A = 0.1 : results look very stable, saliency maps 90 frames apart look almost identical
+A = 0.2 :
+"""
 
 #=============== prediction destinations ===================
 
