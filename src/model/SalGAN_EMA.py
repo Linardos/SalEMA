@@ -171,7 +171,7 @@ class SalGAN_EMA2(nn.Module):
         # assamble the full architecture encoder-decoder
         self.salgan = torch.nn.Sequential(*(list(encoder.children())+list(decoder.children())))
 
-        print("Model initialized, EMAs located at {} and {}".format(self.salgan[self.ema_loc_1, ema_loc_2]))
+        print("Model initialized, EMAs located at {} and {}".format(self.salgan[self.ema_loc_1], self.salgan[self.ema_loc_2]))
         #print(len(self.salgan))
 
     def forward(self, input_, prev_state_1=None, prev_state_2=None):
