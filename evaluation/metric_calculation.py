@@ -12,18 +12,26 @@ from PIL import Image
 
 GT_DIR = "/imatge/lpanagiotis/work/DHF1K/maps"
 FIX_DIR = "/imatge/lpanagiotis/work/DHF1K/fixations"
-#SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGplus_predictions"
-#SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGplus_predictions_J"
-#SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGtuned_predictions"
-#SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGmid_predictions" # This is with JJ weights
-#SM_DIR = "/imatge/lpanagiotis/projects/saliency/public_html/VideoSalGAN-II"
+SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGplus_predictions"
+SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGtuned_predictions"
+SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGplus_predictions_J"
+SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGmid_predictions" # This is with JJ weights
+SM_DIR = "/imatge/lpanagiotis/projects/saliency/public_html/VideoSalGAN-II"
 SM_DIR = "/imatge/lpanagiotis/work/DHF1K/VideoSalGAN-II"
+SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGema_predictions"
+SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGema30_predictions"
+SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGema54_predictions"
+SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGema61_predictions"
+SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGema7_predictions"
+SM_DIR = "/imatge/lpanagiotis/work/DHF1K/Val.SalEMA61_predictions"
+
 RESCALE_GTs = False
 print("Now evaluating on {}".format(SM_DIR))
 continue_calculations = False
 
+STARTING_VIDEO = 601
 NUMBER_OF_VIDEOS = 700
-STARTING_VIDEO = 1
+
 if continue_calculations:
     with open('metrics.txt', 'rb') as handle:
         final_metric_list = pickle.load(handle)
