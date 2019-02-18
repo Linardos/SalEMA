@@ -18,23 +18,29 @@ if torch.cuda.is_available():
 
 dataset_name = "DHF1K"
 clip_length = 10 #with 10 clips the loss seems to reach zero very fast
-number_of_videos = 3 # DHF1K offers 700 labeled videos, the other 300 are held back by the authors
+STARTING_VIDEO = 601
+NUMBER_OF_VIDEOS = 700# DHF1K offers 700 labeled videos, the other 300 are held back by the authors
+EMA_LOC = 61
+dst = "/imatge/lpanagiotis/work/{}/Val.SalEMA{}_predictions".format(dataset_name, EMA_LOC)
 #pretrained_model = './SalGANplus.pt'
 #pretrained_model = '/imatge/lpanagiotis/work/SalGANmore/model_weights/gen_model.pt' # Vanilla SalGAN
 #pretrained_model = './SalGAN.pt'
-pretrained_model = 'model_weights/salgan_salicon.pt' #JuanJo's weights
+#pretrained_model = 'model_weights/salgan_salicon.pt' #JuanJo's weights
 #pretrained_model = './SalGANplus.pt'
 #pretrained_model = './SalGANmid.pt'
+pretrained_model = './SalGANema{}.pt'.format(EMA_LOC)
 frame_size = (192, 256)
 
 #=============== EMA params ============
 
 EMA = True
-ALPHA = 0.2
+if EMA_LOC == None:
+    EMA = False
+
+ALPHA = 0.1
 """
 Qualitative results:
-A = 0.1 : results look very stable, saliency maps 90 frames apart look almost identical
-A = 0.2 :
+A = 0.1 : results look better after changing initialization to be static instead of mostly zero. Results looked too stable when doing EMA from sample 1.
 """
 
 #=============== prediction destinations ===================
@@ -42,13 +48,12 @@ A = 0.2 :
 #dst = "/imatge/lpanagiotis/work/{}/SGplus_predictions".format(dataset_name)
 #dst = "/imatge/lpanagiotis/work/{}/SG_predictions".format(dataset_name)
 #dst = "/imatge/lpanagiotis/work/{}/SGtuned_predictions".format(dataset_name)
-#dst = "/imatge/lpanagiotis/work/{}/SGmid_predictions".format(dataset_name)
 #dst = "/imatge/lpanagiotis/work/{}/SGplus_predictions_J".format(dataset_name)
-dst = "/imatge/lpanagiotis/work/{}/SGema_predictions".format(dataset_name)
-dst = "/imatge/lpanagiotis/work/SalGANmore/sample_saliency" #temporary
-# Parameters
+#dst = "/imatge/lpanagiotis/work/{}/SGema_predictions".format(dataset_name)
+#dst = "/imatge/lpanagiotis/work/{}/VideoSalGAN-II".format(dataset_name)
+#dst = "/imatge/lpanagiotis/work/SalGANmore/sample_saliency" #temporary
 
-#===========================================================
+#================ Paremeters ===================
 
 params = {'batch_size': 1, # number of videos / batch, I need to implement padding if I want to do more than 1, but with DataParallel it's quite messy
           'num_workers': 4,
@@ -65,7 +70,8 @@ def main(dataset_name=dataset_name):
         dataset = DHF1K_frames(
             frames_path = "/imatge/lpanagiotis/work/DHF1K/frames",
             gt_path = "/imatge/lpanagiotis/work/DHF1K/maps",
-            number_of_videos = number_of_videos,
+            starting_video = STARTING_VIDEO,
+            number_of_videos = NUMBER_OF_VIDEOS,
             clip_length = clip_length,
             split = None,
             resolution = frame_size)
@@ -142,18 +148,39 @@ def main(dataset_name=dataset_name):
 
     elif pretrained_model == 'model_weights/salgan_salicon.pt' and EMA == True:
 
-        model = SalGAN_EMA.SalGAN_EMA(alpha=ALPHA)
+        model = SalGAN_EMA.SalGAN_EMA(alpha=ALPHA, ema_loc=EMA_LOC)
+
         model.salgan.load_state_dict(torch.load(pretrained_model)['state_dict'])
         print("Pre-trained model SalBCE loaded succesfully. EMA inference will commence soon.")
 
         TEMPORAL = True
 
-    else:
+    elif "ema" in pretrained_model:
+
+        model = SalGAN_EMA.SalGAN_EMA(alpha=ALPHA, ema_loc=EMA_LOC)
+
+        temp = torch.load(pretrained_model)['state_dict']
+        # Because of dataparallel there is contradiction in the name of the keys so we need to remove part of the string in the keys:.
+        from collections import OrderedDict
+        checkpoint = OrderedDict()
+        for key in temp.keys():
+            new_key = key.replace("module.","")
+            checkpoint[new_key]=temp[key]
+
+        model.load_state_dict(checkpoint, strict=True)
+        print("Pre-trained model SalEMA{} loaded succesfully".format(EMA_LOC))
+
+        TEMPORAL = True
+
+    elif pretrained_model == '/imatge/lpanagiotis/work/SalGANmore/model_weights/gen_model.pt':
         model = SalGANmore.SalGAN()
         model.salgan.load_state_dict(torch.load(pretrained_model))
         print("Pre-trained model vanilla SalGAN loaded succesfully")
 
         TEMPORAL = False
+    else:
+        print("Your model was not recognized, check the name of the model and try again.")
+        exit()
 
     model = nn.DataParallel(model).cuda()
     cudnn.benchmark = True #https://discuss.pytorch.org/t/what-does-torch-backends-cudnn-benchmark-do/5936
@@ -176,7 +203,7 @@ def main(dataset_name=dataset_name):
 
         if dataset_name == "DHF1K":
 
-            video_dst = os.path.join(dst, str(i+1).zfill(4))
+            video_dst = os.path.join(dst, str(STARTING_VIDEO+i).zfill(4))
             if not os.path.exists(video_dst):
                 os.mkdir(video_dst)
 
@@ -222,7 +249,7 @@ def main(dataset_name=dataset_name):
                 if TEMPORAL:
                     state = repackage_hidden(state)
 
-        print("Video {} done".format(i+1))
+        print("Video {} done".format(i+STARTING_VIDEO))
 
 def repackage_hidden(h):
     """Wraps hidden states in new Tensors, to detach them from their history."""

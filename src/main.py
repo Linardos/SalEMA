@@ -2,7 +2,7 @@ import cv2
 import os
 import datetime
 import numpy as np
-from model import SalGANmore
+from model import SalGANmore, SalGAN_EMA
 import pickle
 import torch
 from torchvision import transforms, utils
@@ -25,22 +25,27 @@ weight_decay = 1e-4
 epochs = 7
 plot_every = 1
 pretrained_model = None #This refers to a pretrained model beyond SalGAN. In any case we are loading pretrained SalGAN weights.
-new_model = 'SalGANmid.pt'
+#new_model = 'SalGANmid.pt'
 clip_length = 10
-number_of_videos = 700 # DHF1K offers 700 labeled videos, the other 300 are held back by the authors
+starting_video = 1
+number_of_videos = 600 # DHF1K offers 700 labeled videos, the other 300 are held back by the authors
 
 TEMPORAL = True
-FREEZE = True
+FREEZE = False
 #SALGAN_WEIGHTS = 'model_weights/gen_model.pt'
 SALGAN_WEIGHTS = 'model_weights/salgan_salicon.pt' #JuanJo's weights
 #CONV_LSTM_WEIGHTS = './SalConvLSTM.pt' #These are not relevant in this problem after all, SalGAN was trained on a range of 0-255, the ConvLSTM was trained on a 0-1 range so they are incompatible.
 #writer = SummaryWriter('./log') #Tensorboard, uncomment all lines containing writer if you wish to use this visualization tool
-
+ALPHA = 0.1
+DOUBLE = False
+EMA_LOC = 61 # 30 is the bottleneck
 # Parameters
 params = {'batch_size': 1, # number of videos / batch, I need to implement padding if I want to do more than 1, but with DataParallel it's quite messy
           'num_workers': 4,
           'pin_memory': True}
 
+#new_model = 'SalGANema{}.pt'.format(EMA_LOC)
+new_model = 'SalGANema{}.pt'.format(EMA_LOC)
 
 def main(params = params):
 
@@ -50,6 +55,7 @@ def main(params = params):
     #Expect Error if either validation size or train size is 1
     train_set = DHF1K_frames(
         number_of_videos = number_of_videos,
+        starting_video = starting_video,
         clip_length = clip_length,
         resolution = frame_size,
         split = "train")
@@ -57,6 +63,7 @@ def main(params = params):
 
     val_set = DHF1K_frames(
         number_of_videos = number_of_videos,
+        starting_video = starting_video,
         clip_length = clip_length,
         resolution = frame_size,
         split = "validation")
@@ -91,6 +98,13 @@ def main(params = params):
     elif new_model == 'SalGAN.pt':
         model = SalGANmore.SalGAN()
         print("Initialized {}".format(new_model))
+    elif 'ema' in new_model:
+        if '2ema' in new_model:
+            model = SalGAN_EMA.SalGAN_EMA2(alpha=ALPHA, ema_loc_1=EMA_LOC, ema_loc_2=EMA_LOC_2)
+            print("Initialized {}".format(new_model))
+        else:
+            model = SalGAN_EMA.SalGAN_EMA(alpha=ALPHA, ema_loc=EMA_LOC)
+            print("Initialized {}".format(new_model))
     else:
         print("Your model was not recognized, check the name of the model and try again.")
         exit()
@@ -114,8 +128,7 @@ def main(params = params):
 
 
     if pretrained_model == None:
-
-        # Load the weights of salgan generator.
+        # In truth it's not None, we default to SalGAN or SalBCE (JuanJo's)weights
         # By setting strict to False we allow the model to load only the matching layers' weights
         if SALGAN_WEIGHTS == 'model_weights/gen_model.pt':
             model.salgan.load_state_dict(torch.load(SALGAN_WEIGHTS), strict=False)
@@ -134,9 +147,6 @@ def main(params = params):
         #optimizer.load_state_dict(torch.load(pretrained_model, map_location='cpu')['optimizer'])
 
         print("Model loaded, commencing training from epoch {}".format(start_epoch))
-
-
-
 
     model = nn.DataParallel(model).cuda()
     cudnn.benchmark = True #https://discuss.pytorch.org/t/what-does-torch-backends-cudnn-benchmark-do/5936
@@ -273,7 +283,7 @@ def train(train_loader, model, criterion, optimizer, epoch, n_iter):
             clip = Variable(clip.type(dtype).transpose(0,1))
             gtruths = Variable(gtruths.type(dtype).transpose(0,1))
 
-            if TEMPORAL:
+            if TEMPORAL and not DOUBLE:
                 #print(clip.size()) #works! torch.Size([5, 1, 1, 360, 640])
                 loss = 0
                 for idx in range(clip.size()[0]):
@@ -312,6 +322,45 @@ def train(train_loader, model, criterion, optimizer, epoch, n_iter):
                 # Repackage to avoid backpropagating further through time
                 state = repackage_hidden(state)
 
+            elif TEMPORAL and DOUBLE:
+                if state == None:
+                    state = (None, None)
+                loss = 0
+                for idx in range(clip.size()[0]):
+                    #print(clip[idx].size())
+
+                    # Compute output
+                    state, saliency_map = model.forward(input_ = clip[idx], prev_state_1 = state[0], prev_state_2 = state[1]) # Based on the number of epoch the model will unfreeze deeper layers moving on to shallow ones
+
+                    saliency_map = saliency_map.squeeze(0) # Target is 3 dimensional (grayscale image)
+                    if saliency_map.size() != gtruths[idx].size():
+                        print(saliency_map.size())
+                        print(gtruths[idx].size())
+                        a, b, c, _ = saliency_map.size()
+                        saliency_map = torch.cat([saliency_map, torch.zeros(a, b, c, 1).cuda()], 3) #because of upsampling we need to concatenate another column of zeroes. The original number is odd so it is impossible for upsampling to get an odd number as it scales by 2
+
+
+                    # Apply sigmoid before visualization
+                    # logits will be whatever you have to rescale this
+
+                    # Compute loss
+                    loss = loss + criterion(saliency_map, gtruths[idx])
+
+                # Keep score
+                accumulated_losses.append(loss.data)
+
+                # Compute gradient
+                loss.backward()
+
+
+                # Clip gradient to avoid explosive gradients. Gradients are accumulated so I went for a threshold that depends on clip length. Note that the loss that is stored in the score for printing does not include this clipping.
+                nn.utils.clip_grad_norm_(model.parameters(), 10*clip.size()[0])
+
+                # Update parameters
+                optimizer.step()
+
+                # Repackage to avoid backpropagating further through time
+                state = repackage_hidden(state)
 
             else:
                 print(type(clip))
