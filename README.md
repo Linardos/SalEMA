@@ -11,7 +11,7 @@ The saliency generator consists of an encoder and a decoder part. Porting to PyT
 After setting a baseline we applied our temporal augmentation, which essentially was choosing a layer to act as the temporal state or add a new one. We experimented with two types of modifications: an exponential moving average of the temporal state and the addition of a ConvLSTM layer to act as the temporal state. We trained our architecture on [DHF1K](https://github.com/wenguanwang/DHF1K). Below is an schematic representing one example of our models, where the temporal state was added at the bottleneck.
 ![TemporalEDmodel](https://github.com/Linardos/VideoSalGAN-II/blob/master/TemporalEDmodel.png)
 
-Evaluation on DHF1K showed that our augmentations improve performance over the baseline:
+Evaluation on DHF1K showed that our augmentations improve performance over the baseline. The best results with EMA were achieved by placement of the function in the output Sigmoid layer (61) while the best results with a ConvLSTM addition were achieved by placement at the bottleneck (30).
 
 | DHF1K	| AUC-J	| s-AUC	| NSS	| CC | SIM |
 | ----- | ----- | ----- | --- | -- | --- |
