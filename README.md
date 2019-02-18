@@ -7,7 +7,7 @@ The original architecture ([SalGAN](https://imatge-upc.github.io/saliency-salgan
 ![image](https://raw.githubusercontent.com/imatge-upc/saliency-salgan-2017/junting/figs/fullarchitecture.jpg?token=AFOjyaH8cuBFWpldWWzo_TKVB-zekfxrks5Yc4NQwA%3D%3D)
 
 The saliency generator consists of an encoder and a decoder part. What we did is use these two parts with their respective pretrained weights and add a ConvLSTM cell in the middle, to extract temporally significant features. We trained our architecture on [DHF1K](https://github.com/wenguanwang/DHF1K). 
-![salganmid](https://github.com/Linardos/VideoSalGAN-II/blob/master/TemporalEDmodel.jpg)
+![TemporalEDmodel](https://github.com/Linardos/VideoSalGAN-II/blob/master/TemporalEDmodel.png)
 
 For evaluation purposes we also tuned an instance of SalGAN on the DHF1K dataset. We evaluated both versions of SalGAN and our model, and found that our augmentation boosts performance on this dataset.
 
