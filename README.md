@@ -15,7 +15,7 @@ Evaluation on DHF1K showed that our augmentations improve performance over the b
 
 | DHF1K	| AUC-J	| s-AUC	| NSS	| CC | SIM |
 | ----- | ----- | ----- | --- | -- | --- |
-| SalGAN (Port) |	0.807 |	0.661 |	1.545	| 0.282 |	0.197 |
-| Sal(GAN) (Tuned)	| 0.872	| 0.666	| 2.035	| 0.379	| 0.267 |
+| SalGAN Port |	0.807 |	0.661 |	1.545	| 0.282 |	0.197 |
+| Sal(GAN) Tuned	| 0.872	| 0.666	| 2.035	| 0.379	| 0.267 |
 | SalCLSTM30 | 0.915	| 0.745	| 3.173	| 0.556	| 0.440 |
 | SalEMA61 |	0.923 |	0.763	| 3.360 |	0.591 |	0.465 |
