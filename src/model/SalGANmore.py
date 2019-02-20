@@ -361,19 +361,16 @@ class SalGANmid(nn.Module):
         ]
 
         decoder = torch.nn.Sequential(*decoder_list)
+        # assamble the full architecture encoder-decoder
         self.salgan = torch.nn.Sequential(*(list(encoder.children())+list(decoder.children())))
         assert(str(encoder)==str(self.salgan[:30]))
-        # assamble the full architecture encoder-decoder
-        self.salganDecoder = torch.nn.Sequential(*(list(decoder.children())))
-        #print(self.salgan)
+
         # ConvLSTM
         self.input_size = 512
         self.hidden_size = 512
         self.Gates = nn.Conv2d(in_channels = self.input_size + self.hidden_size, out_channels = 4 * self.hidden_size, kernel_size = (3, 3), padding = 1) #padding 1 to preserve HxW dimensions
 
-
         # Initialize weights of ConvLSTM
-
         torch.manual_seed(seed_init)
         for name, param in self.Gates.named_parameters():
                 if "weight" in name:
@@ -389,14 +386,6 @@ class SalGANmid(nn.Module):
             for child in self.salgan.children():
                 for param in child.parameters():
                     param.requires_grad = False
-            """
-            for child in self.salganEncoder.children():
-                for param in child.parameters():
-                    param.requires_grad = False
-            for child in self.salganDecoder.children():
-                for param in child.parameters():
-                    param.requires_grad = False
-            """
 
 
     def thaw(self, epoch, optimizer):

@@ -22,17 +22,16 @@ learning_rate = 0.000001 #
 decay_rate = 0.1
 momentum = 0.9
 weight_decay = 1e-4
-epochs = 7
+epochs = 6
 plot_every = 1
-pretrained_model = None #This refers to a pretrained model beyond SalGAN. In any case we are loading pretrained SalGAN weights.
-#new_model = 'SalGANmid.pt'
+pretrained_model = None
 clip_length = 10
 starting_video = 1
-number_of_videos = 600 # DHF1K offers 700 labeled videos, the other 300 are held back by the authors
+number_of_videos = 600
 
+VAL_PERC = 0 #percentage of the given data to be used as validation on runtime. In our last experiments we validate after training so we don't use validation on runtime.
 TEMPORAL = True
 FREEZE = False
-#SALGAN_WEIGHTS = 'model_weights/gen_model.pt'
 SALGAN_WEIGHTS = 'model_weights/salgan_salicon.pt' #JuanJo's weights
 #CONV_LSTM_WEIGHTS = './SalConvLSTM.pt' #These are not relevant in this problem after all, SalGAN was trained on a range of 0-255, the ConvLSTM was trained on a 0-1 range so they are incompatible.
 #writer = SummaryWriter('./log') #Tensorboard, uncomment all lines containing writer if you wish to use this visualization tool
@@ -58,31 +57,31 @@ def main(params = params):
         starting_video = starting_video,
         clip_length = clip_length,
         resolution = frame_size,
+        val_perc = VAL_PERC,
         split = "train")
     print("Size of train set is {}".format(len(train_set)))
-
-    val_set = DHF1K_frames(
-        number_of_videos = number_of_videos,
-        starting_video = starting_video,
-        clip_length = clip_length,
-        resolution = frame_size,
-        split = "validation")
-    print("Size of validation set is {}".format(len(val_set)))
-
-    whole_set = DHF1K_frames(
-        number_of_videos = number_of_videos,
-        clip_length = clip_length,
-        resolution = frame_size,
-        split = None)
-    print("Size of whole set is {}".format(len(whole_set)))
-
-
-    #print(len(train_set[0]))
-    #print(len(train_set[1]))
-
     train_loader = data.DataLoader(train_set, **params)
-    val_loader = data.DataLoader(val_set, **params)
-    whole_loader = data.DataLoader(whole_set, **params)
+
+    if VAL_PERC > 0:
+        val_set = DHF1K_frames(
+            number_of_videos = number_of_videos,
+            starting_video = starting_video,
+            clip_length = clip_length,
+            resolution = frame_size,
+            val_perc = VAL_PERC,
+            split = "validation")
+        print("Size of validation set is {}".format(len(val_set)))
+        val_loader = data.DataLoader(val_set, **params)
+
+        whole_set = DHF1K_frames(
+            number_of_videos = number_of_videos,
+            starting_video = starting_video,
+            clip_length = clip_length,
+            resolution = frame_size,
+            val_perc = VAL_PERC,
+            split = None)
+        print("Size of whole set is {}".format(len(whole_set)))
+        whole_loader = data.DataLoader(whole_set, **params)
 
     # =================================================
     # ================ Define Model ===================
@@ -162,25 +161,36 @@ def main(params = params):
 
     n_iter = 0
     for epoch in range(start_epoch, epochs+1):
-        try:
-            if epoch != epochs:
-                #adjust_learning_rate(optimizer, epoch, decay_rate) #Didn't use this after all
-                # train for one epoch
-                train_loss, n_iter, optimizer = train(train_loader, model, criterion, optimizer, epoch, n_iter)
 
+        try:
+            #adjust_learning_rate(optimizer, epoch, decay_rate) #Didn't use this after all
+            # train for one epoch
+            train_loss, n_iter, optimizer = train(train_loader, model, criterion, optimizer, epoch, n_iter)
+
+            if VAL_PERC > 0:
                 val_loss = validate(val_loader, model, criterion, epoch)
 
-                if epoch % plot_every == 0:
-                    train_losses.append(train_loss.cpu())
+            if epoch % plot_every == 0:
+                train_losses.append(train_loss.cpu())
+                if VAL_PERC > 0:
                     val_losses.append(val_loss.cpu())
 
-                print("Epoch {}/{} done with train loss {} and validation loss {}\n".format(epoch, epochs, train_loss, val_loss))
+            print("Epoch {}/{} done with train loss {} and validation loss {}\n".format(epoch, epochs, train_loss, val_loss))
+            """
             else:
 
                 print("Training on whole set")
                 train_loss, n_iter, optimizer = train(whole_loader, model, criterion, optimizer, epoch, n_iter)
                 print("Epoch {}/{} done with train loss {}".format(epoch, epochs, train_loss))
+            """
 
+            torch.save({
+                'epoch': epoch + 1,
+                'state_dict': model.cpu().state_dict(),
+                'optimizer' : optimizer.state_dict()
+                }, new_model)
+
+            print("Current progress saved.")
 
         except RuntimeError:
             print("A memory error was encountered. Further training aborted.")
@@ -192,11 +202,6 @@ def main(params = params):
     # ===================== #
     # ======  Saving ====== #
 
-    torch.save({
-        'epoch': epoch + 1,
-        'state_dict': model.cpu().state_dict(),
-        'optimizer' : optimizer.state_dict()
-        }, new_model)
 
     """
     hyperparameters = {
