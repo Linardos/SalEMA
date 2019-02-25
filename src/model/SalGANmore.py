@@ -309,9 +309,10 @@ class SalGANplus(nn.Module):
 
 class SalGANmid(nn.Module):
 
-    def __init__(self, seed_init, freeze= True, use_gpu=True):
+    def __init__(self, seed_init, residual,freeze= True, use_gpu=True):
         super(SalGANmid,self).__init__()
 
+        self.residual = residual
         self.use_gpu = use_gpu
         # Create encoder based on VGG16 architecture
         original_vgg16 = vgg16()
@@ -452,6 +453,7 @@ class SalGANmid(nn.Module):
     def forward(self, input_, prev_state=None):
 
         x = self.salgan[:30](input_) # Encoder
+        residual = x
         #print("Without ConvLSTM output: {}".format(y.size())) #Verdict: ConvLSTM irrelevant to size discrepancy
         # get batch and spatial sizes
         #print("Before ConvLSTM {}".format(x.size()))
@@ -507,7 +509,12 @@ class SalGANmid(nn.Module):
         state = [hidden,cell]
 
         #print("After ConvLSTM {}".format(cell.size()))
-        saliency_map = self.salgan[30:](cell) # Decoder
+        if self.residual == True:
+            x = cell+residual
+        else:
+            x = cell
+
+        saliency_map = self.salgan[30:](x) # Decoder
         #print(saliency_map.size())
         return (hidden, cell), saliency_map
 

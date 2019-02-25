@@ -20,38 +20,27 @@ dataset_name = "DHF1K"
 clip_length = 10 #with 10 clips the loss seems to reach zero very fast
 STARTING_VIDEO = 601
 NUMBER_OF_VIDEOS = 700# DHF1K offers 700 labeled videos, the other 300 are held back by the authors
-EMA_LOC = 61
-dst = "/imatge/lpanagiotis/work/{}/Val.SalEMA{}_predictions".format(dataset_name, EMA_LOC)
+EMA_LOC = 54
+ALPHA = 0.1
+#dst = "/imatge/lpanagiotis/work/{}/Val.SalEMA{}_predictions".format(dataset_name, EMA_LOC)
 #pretrained_model = './SalGANplus.pt'
 #pretrained_model = '/imatge/lpanagiotis/work/SalGANmore/model_weights/gen_model.pt' # Vanilla SalGAN
 #pretrained_model = './SalGAN.pt'
-#pretrained_model = 'model_weights/salgan_salicon.pt' #JuanJo's weights
+pretrained_model = 'model_weights/salgan_salicon.pt' #JuanJo's weights, set EMA_LOC to None for original SalBCE, otherwise EMA will be added
 #pretrained_model = './SalGANplus.pt'
 #pretrained_model = './SalGANmid.pt'
-pretrained_model = './SalGANema{}.pt'.format(EMA_LOC)
+#pretrained_model = './SalGANema{}.pt'.format(EMA_LOC)
 frame_size = (192, 256)
-
-#=============== EMA params ============
-
-EMA = True
-if EMA_LOC == None:
-    EMA = False
-
-ALPHA = 0.1
-"""
-Qualitative results:
-A = 0.1 : results look better after changing initialization to be static instead of mostly zero. Results looked too stable when doing EMA from sample 1.
-"""
 
 #=============== prediction destinations ===================
 
-#dst = "/imatge/lpanagiotis/work/{}/SGplus_predictions".format(dataset_name)
-#dst = "/imatge/lpanagiotis/work/{}/SG_predictions".format(dataset_name)
-#dst = "/imatge/lpanagiotis/work/{}/SGtuned_predictions".format(dataset_name)
+dst = "/imatge/lpanagiotis/work/{}/SG_predictions".format(dataset_name)
+dst = "/imatge/lpanagiotis/work/{}/SBCE_predictions".format(dataset_name)
+dst = "/imatge/lpanagiotis/work/{}/SGmid_predictions".format(dataset_name)
+dst = "/imatge/lpanagiotis/work/{}/SBCEema{}_predictions".format(dataset_name, EMA_LOC)
 #dst = "/imatge/lpanagiotis/work/{}/SGplus_predictions_J".format(dataset_name)
 #dst = "/imatge/lpanagiotis/work/{}/SGema_predictions".format(dataset_name)
 #dst = "/imatge/lpanagiotis/work/{}/VideoSalGAN-II".format(dataset_name)
-#dst = "/imatge/lpanagiotis/work/SalGANmore/sample_saliency" #temporary
 
 #================ Paremeters ===================
 
@@ -146,16 +135,21 @@ def main(dataset_name=dataset_name):
 
         TEMPORAL = False
 
-    elif pretrained_model == 'model_weights/salgan_salicon.pt' and EMA == True:
+    elif pretrained_model == 'model_weights/salgan_salicon.pt':
 
-        model = SalGAN_EMA.SalGAN_EMA(alpha=ALPHA, ema_loc=EMA_LOC)
+        if EMA_LOC == None:
+            model = SalGANmore.SalGAN()
+            TEMPORAL = False
+            print("Pre-trained model SalBCE loaded succesfully.")
+        else:
+            model = SalGAN_EMA.SalGAN_EMA(alpha=ALPHA, ema_loc=EMA_LOC)
+            TEMPORAL = True
+            print("Pre-trained model SalBCE loaded succesfully. EMA inference will commence soon.")
 
         model.salgan.load_state_dict(torch.load(pretrained_model)['state_dict'])
-        print("Pre-trained model SalBCE loaded succesfully. EMA inference will commence soon.")
 
-        TEMPORAL = True
 
-    elif "ema" in pretrained_model:
+    elif "EMA" in pretrained_model:
 
         model = SalGAN_EMA.SalGAN_EMA(alpha=ALPHA, ema_loc=EMA_LOC)
 
@@ -182,9 +176,9 @@ def main(dataset_name=dataset_name):
         print("Your model was not recognized, check the name of the model and try again.")
         exit()
 
-    model = nn.DataParallel(model).cuda()
+    #model = nn.DataParallel(model).cuda()
     cudnn.benchmark = True #https://discuss.pytorch.org/t/what-does-torch-backends-cudnn-benchmark-do/5936
-    #model = model.cuda()
+    model = model.cuda()
     # ==================================================
     # ================== Inference =====================
 

@@ -13,9 +13,7 @@ from PIL import Image
 GT_DIR = "/imatge/lpanagiotis/work/DHF1K/maps"
 FIX_DIR = "/imatge/lpanagiotis/work/DHF1K/fixations"
 SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGplus_predictions"
-SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGtuned_predictions"
 SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGplus_predictions_J"
-SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGmid_predictions" # This is with JJ weights
 SM_DIR = "/imatge/lpanagiotis/projects/saliency/public_html/VideoSalGAN-II"
 SM_DIR = "/imatge/lpanagiotis/work/DHF1K/VideoSalGAN-II"
 SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGema_predictions"
@@ -24,6 +22,8 @@ SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGema54_predictions"
 SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGema61_predictions"
 SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGema7_predictions"
 SM_DIR = "/imatge/lpanagiotis/work/DHF1K/Val.SalEMA61_predictions"
+SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGmid_predictions" # This is with JJ weights
+SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SBCEema54_predictions"
 
 RESCALE_GTs = False
 print("Now evaluating on {}".format(SM_DIR))
@@ -44,7 +44,7 @@ else:
 def sAUC_sampler(video_number, M=50):
     # A sampler for the shuffled AUC metric. From the ground truths sample images at random; then aggregate them to feed into sAUC.
 
-    videos = list(range(1,NUMBER_OF_VIDEOS+1))
+    videos = list(range(STARTING_VIDEO,NUMBER_OF_VIDEOS+1))
     videos.remove(video_number) # Remove the video being evaluated.
     video_sample_inds = np.random.choice(videos, M, replace=False)
 

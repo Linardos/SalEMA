@@ -22,29 +22,31 @@ learning_rate = 0.000001 #
 decay_rate = 0.1
 momentum = 0.9
 weight_decay = 1e-4
-epochs = 6
+epochs = 7
 plot_every = 1
-pretrained_model = None
 clip_length = 10
 starting_video = 1
-number_of_videos = 600
+number_of_videos = 700
 
 VAL_PERC = 0 #percentage of the given data to be used as validation on runtime. In our last experiments we validate after training so we don't use validation on runtime.
 TEMPORAL = True
 FREEZE = False
+RESIDUAL = True
 SALGAN_WEIGHTS = 'model_weights/salgan_salicon.pt' #JuanJo's weights
 #CONV_LSTM_WEIGHTS = './SalConvLSTM.pt' #These are not relevant in this problem after all, SalGAN was trained on a range of 0-255, the ConvLSTM was trained on a 0-1 range so they are incompatible.
 #writer = SummaryWriter('./log') #Tensorboard, uncomment all lines containing writer if you wish to use this visualization tool
 ALPHA = 0.1
 DOUBLE = False
-EMA_LOC = 61 # 30 is the bottleneck
+EMA_LOC = 54     # 30 is the bottleneck
+PARALLEL = True
 # Parameters
 params = {'batch_size': 1, # number of videos / batch, I need to implement padding if I want to do more than 1, but with DataParallel it's quite messy
           'num_workers': 4,
           'pin_memory': True}
 
-#new_model = 'SalGANema{}.pt'.format(EMA_LOC)
-new_model = 'SalGANema{}.pt'.format(EMA_LOC)
+new_model = 'SalEMA{}.pt'.format(EMA_LOC)
+pretrained_model = None
+#new_model = 'SalGAN.pt'
 
 def main(params = params):
 
@@ -73,16 +75,6 @@ def main(params = params):
         print("Size of validation set is {}".format(len(val_set)))
         val_loader = data.DataLoader(val_set, **params)
 
-        whole_set = DHF1K_frames(
-            number_of_videos = number_of_videos,
-            starting_video = starting_video,
-            clip_length = clip_length,
-            resolution = frame_size,
-            val_perc = VAL_PERC,
-            split = None)
-        print("Size of whole set is {}".format(len(whole_set)))
-        whole_loader = data.DataLoader(whole_set, **params)
-
     # =================================================
     # ================ Define Model ===================
 
@@ -91,14 +83,14 @@ def main(params = params):
     if new_model == 'SalGANplus.pt':
         model = SalGANmore.SalGANplus(seed_init=65, freeze=FREEZE)
         print("Initialized {}".format(new_model))
-    elif new_model == 'SalGANmid.pt':
-        model = SalGANmore.SalGANmid(seed_init=65, freeze=FREEZE)
+    elif 'SalGANmid' in new_model:
+        model = SalGANmore.SalGANmid(seed_init=65, residual=RESIDUAL, freeze=FREEZE)
         print("Initialized {}".format(new_model))
     elif new_model == 'SalGAN.pt':
         model = SalGANmore.SalGAN()
         print("Initialized {}".format(new_model))
-    elif 'ema' in new_model:
-        if '2ema' in new_model:
+    elif 'EMA' in new_model:
+        if '2EMA' in new_model:
             model = SalGAN_EMA.SalGAN_EMA2(alpha=ALPHA, ema_loc_1=EMA_LOC, ema_loc_2=EMA_LOC_2)
             print("Initialized {}".format(new_model))
         else:
@@ -119,7 +111,7 @@ def main(params = params):
         if new_model == 'SalGANplus.pt':
             optimizer = torch.optim.Adam([{'params': model.Gates.parameters()},{'params': model.final_convs.parameters()}], learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=weight_decay)
 
-        elif new_model == 'SalGANmid.pt':
+        elif 'SalGANmid' in new_model:
             optimizer = torch.optim.Adam([{'params': model.Gates.parameters()}], learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=weight_decay)
 
     else:
@@ -147,7 +139,10 @@ def main(params = params):
 
         print("Model loaded, commencing training from epoch {}".format(start_epoch))
 
-    model = nn.DataParallel(model).cuda()
+    if PARALLEL:
+        model = nn.DataParallel(model).cuda()
+    else:
+        model = model.cuda()
     cudnn.benchmark = True #https://discuss.pytorch.org/t/what-does-torch-backends-cudnn-benchmark-do/5936
     criterion = criterion.cuda()
     # =================================================
@@ -167,15 +162,26 @@ def main(params = params):
             # train for one epoch
             train_loss, n_iter, optimizer = train(train_loader, model, criterion, optimizer, epoch, n_iter)
 
+            print("Epoch {}/{} done with train loss {}\n".format(epoch, epochs, train_loss))
+
             if VAL_PERC > 0:
+                print("Running validation..")
                 val_loss = validate(val_loader, model, criterion, epoch)
+                print("Validation loss: {}".format(val_loss))
 
             if epoch % plot_every == 0:
                 train_losses.append(train_loss.cpu())
                 if VAL_PERC > 0:
                     val_losses.append(val_loss.cpu())
 
-            print("Epoch {}/{} done with train loss {} and validation loss {}\n".format(epoch, epochs, train_loss, val_loss))
+            if PARALLEL == False:
+                torch.save({
+                    'epoch': epoch + 1,
+                    'state_dict': model.cpu().state_dict(),
+                    'optimizer' : optimizer.state_dict()
+                    }, new_model)
+
+                model = model.cuda() #Bring model back to cuda
             """
             else:
 
@@ -183,14 +189,6 @@ def main(params = params):
                 train_loss, n_iter, optimizer = train(whole_loader, model, criterion, optimizer, epoch, n_iter)
                 print("Epoch {}/{} done with train loss {}".format(epoch, epochs, train_loss))
             """
-
-            torch.save({
-                'epoch': epoch + 1,
-                'state_dict': model.cpu().state_dict(),
-                'optimizer' : optimizer.state_dict()
-                }, new_model)
-
-            print("Current progress saved.")
 
         except RuntimeError:
             print("A memory error was encountered. Further training aborted.")
@@ -202,6 +200,12 @@ def main(params = params):
     # ===================== #
     # ======  Saving ====== #
 
+    # If I try saving in regular intervals I have to move the model to CPU and back to GPU.
+    torch.save({
+        'epoch': epoch + 1,
+        'state_dict': model.cpu().state_dict(),
+        'optimizer' : optimizer.state_dict()
+        }, new_model)
 
     """
     hyperparameters = {
@@ -214,13 +218,14 @@ def main(params = params):
     }
     """
 
-    to_plot = {
-        'epoch_ticks': list(range(start_epoch, epochs+1, plot_every)),
-        'train_losses': train_losses,
-        'val_losses': val_losses
-        }
-    with open('to_plot.pkl', 'wb') as handle:
-        pickle.dump(to_plot, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    if VAL_PERC > 0:
+        to_plot = {
+            'epoch_ticks': list(range(start_epoch, epochs+1, plot_every)),
+            'train_losses': train_losses,
+            'val_losses': val_losses
+            }
+        with open('to_plot.pkl', 'wb') as handle:
+            pickle.dump(to_plot, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 # ===================
 
@@ -259,11 +264,18 @@ def train(train_loader, model, criterion, optimizer, epoch, n_iter):
     model.train()
 
     if TEMPORAL and FREEZE:
-        # Unfreeze layers depending on epoch number
-        optimizer = model.module.thaw(epoch, optimizer) #When you wrap a model with DataParallel, the model.module can be seen as the model before it’s wrapped.
+        if PARALLEL:
+            # Unfreeze layers depending on epoch number
+            optimizer = model.module.thaw(epoch, optimizer) #When you wrap a model with DataParallel, the model.module can be seen as the model before it’s wrapped.
 
-        # Confirm:
-        model.module.print_layers()
+            # Confirm:
+            model.module.print_layers()
+        else:
+            # Unfreeze layers depending on epoch number
+            optimizer = model.thaw(epoch, optimizer)
+
+            # Confirm:
+            model.print_layers()
 
     video_losses = []
     print("Now commencing epoch {}".format(epoch))
