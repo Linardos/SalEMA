@@ -18,5 +18,6 @@ Evaluation on DHF1K showed that our augmentations improve performance over the b
 | SalGAN Port | 0.801	| 0.652	| 1.437	| 0.267	| 0.192 |
 | [SalBCE (baseline)](https://github.com/juanjo3ns/SalBCE)| 0.874	| 0.724	| 2.047	| 0.382	| 0.268 |
 | SalCLSTM30 | 0.887 | 0.693 | 2.364 |0.435|	0.322|
-| SalEMA30 | 0.883 |	0.685 |	2.402 |	0.435 |	0.349 |
+| SalEMA30 (no extra training) |	0.883	| 0.734 |	2.144	| 0.400 |	0.276 |
+| SalEMA30 (fine-tuned after the addition of EMA) | 0.883 |	0.685 |	2.402 |	0.435 |	0.349 |
 | SalEMA30 (with dropout) | 0.886	| 0.690	| 2.495	| 0.450	| 0.360 |
