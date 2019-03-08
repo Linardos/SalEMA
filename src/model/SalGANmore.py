@@ -309,7 +309,7 @@ class SalGANplus(nn.Module):
 
 class SalGANmid(nn.Module):
 
-    def __init__(self, seed_init, residual,freeze= True, use_gpu=True):
+    def __init__(self, seed_init, residual, freeze=True, use_gpu=True):
         super(SalGANmid,self).__init__()
 
         self.residual = residual

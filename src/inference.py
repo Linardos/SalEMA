@@ -15,36 +15,36 @@ from data_loader import DHF1K_frames, Ego_frames
 dtype = torch.FloatTensor
 if torch.cuda.is_available():
     dtype = torch.cuda.FloatTensor
-
+"""
+Before inferring check:
+EMA_LOC,
+RESIDUAL,
+pretrained_model,
+dst
+"""
 dataset_name = "DHF1K"
 clip_length = 10 #with 10 clips the loss seems to reach zero very fast
-STARTING_VIDEO = 601
-NUMBER_OF_VIDEOS = 700# DHF1K offers 700 labeled videos, the other 300 are held back by the authors
-EMA_LOC = 54
+STARTING_VIDEO = 701
+NUMBER_OF_VIDEOS = 1000# DHF1K offers 700 labeled videos, the other 300 are held back by the authors
+EMA_LOC = 30     # 30 is the bottleneck
+#EMA_LOC_2 = 54
+RESIDUAL = False
+DOUBLE = False
+DROPOUT = True
 ALPHA = 0.1
-#dst = "/imatge/lpanagiotis/work/{}/Val.SalEMA{}_predictions".format(dataset_name, EMA_LOC)
-#pretrained_model = './SalGANplus.pt'
-#pretrained_model = '/imatge/lpanagiotis/work/SalGANmore/model_weights/gen_model.pt' # Vanilla SalGAN
+#pretrained_model = '/imatge/lpanagiotis/work/SalGANmore/src/model_weights/gen_model.pt' # Vanilla SalGAN
 #pretrained_model = './SalGAN.pt'
-pretrained_model = 'model_weights/salgan_salicon.pt' #JuanJo's weights, set EMA_LOC to None for original SalBCE, otherwise EMA will be added
+#pretrained_model = 'model_weights/salgan_salicon.pt' #JuanJo's weights, set EMA_LOC to None for original SalBCE, otherwise EMA will be added
 #pretrained_model = './SalGANplus.pt'
 #pretrained_model = './SalGANmid.pt'
-#pretrained_model = './SalGANema{}.pt'.format(EMA_LOC)
+pretrained_model = './SalEMA30D.pt'
+#pretrained_model = 'SalEMA{}&{}.pt'.format(EMA_LOC,EMA_LOC_2)
 frame_size = (192, 256)
+# Destination for predictions:
+dst = "/imatge/lpanagiotis/work/{}/{}_test_set_predictions".format(dataset_name, pretrained_model.replace(".pt", ""))
+#dst = "/imatge/lpanagiotis/work/{}/SG_predictions".format(dataset_name)
 
-#=============== prediction destinations ===================
-
-dst = "/imatge/lpanagiotis/work/{}/SG_predictions".format(dataset_name)
-dst = "/imatge/lpanagiotis/work/{}/SBCE_predictions".format(dataset_name)
-dst = "/imatge/lpanagiotis/work/{}/SGmid_predictions".format(dataset_name)
-dst = "/imatge/lpanagiotis/work/{}/SBCEema{}_predictions".format(dataset_name, EMA_LOC)
-#dst = "/imatge/lpanagiotis/work/{}/SGplus_predictions_J".format(dataset_name)
-#dst = "/imatge/lpanagiotis/work/{}/SGema_predictions".format(dataset_name)
-#dst = "/imatge/lpanagiotis/work/{}/VideoSalGAN-II".format(dataset_name)
-
-#================ Paremeters ===================
-
-params = {'batch_size': 1, # number of videos / batch, I need to implement padding if I want to do more than 1, but with DataParallel it's quite messy
+params = {'batch_size': 1,
           'num_workers': 4,
           'pin_memory': True}
 
@@ -135,6 +135,27 @@ def main(dataset_name=dataset_name):
 
         TEMPORAL = False
 
+    elif "EMA" in pretrained_model:
+        if DOUBLE:
+            model = SalGAN_EMA.SalGAN_EMA2(alpha=ALPHA, ema_loc_1=EMA_LOC, ema_loc_2=EMA_LOC_2)
+        else:
+            model = SalGAN_EMA.SalGAN_EMA(alpha=ALPHA, residual=RESIDUAL, dropout = DROPOUT, ema_loc=EMA_LOC)
+
+        temp = torch.load(pretrained_model)['state_dict']
+        # Because of dataparallel there is contradiction in the name of the keys so we need to remove part of the string in the keys:.
+        from collections import OrderedDict
+        checkpoint = OrderedDict()
+        for key in temp.keys():
+            new_key = key.replace("module.","")
+            checkpoint[new_key]=temp[key]
+
+        model.load_state_dict(checkpoint, strict=True)
+        print("Pre-trained model {} loaded succesfully".format(pretrained_model))
+        if RESIDUAL:
+            print("Residual connection is included.")
+
+        TEMPORAL = True
+
     elif pretrained_model == 'model_weights/salgan_salicon.pt':
 
         if EMA_LOC == None:
@@ -149,24 +170,7 @@ def main(dataset_name=dataset_name):
         model.salgan.load_state_dict(torch.load(pretrained_model)['state_dict'])
 
 
-    elif "EMA" in pretrained_model:
-
-        model = SalGAN_EMA.SalGAN_EMA(alpha=ALPHA, ema_loc=EMA_LOC)
-
-        temp = torch.load(pretrained_model)['state_dict']
-        # Because of dataparallel there is contradiction in the name of the keys so we need to remove part of the string in the keys:.
-        from collections import OrderedDict
-        checkpoint = OrderedDict()
-        for key in temp.keys():
-            new_key = key.replace("module.","")
-            checkpoint[new_key]=temp[key]
-
-        model.load_state_dict(checkpoint, strict=True)
-        print("Pre-trained model SalEMA{} loaded succesfully".format(EMA_LOC))
-
-        TEMPORAL = True
-
-    elif pretrained_model == '/imatge/lpanagiotis/work/SalGANmore/model_weights/gen_model.pt':
+    elif pretrained_model == '/imatge/lpanagiotis/work/SalGANmore/src/model_weights/gen_model.pt':
         model = SalGANmore.SalGAN()
         model.salgan.load_state_dict(torch.load(pretrained_model))
         print("Pre-trained model vanilla SalGAN loaded succesfully")
@@ -203,18 +207,31 @@ def main(dataset_name=dataset_name):
 
             for j, (clip, _) in enumerate(video):
                 clip = Variable(clip.type(dtype).transpose(0,1), requires_grad=False)
-                for idx in range(clip.size()[0]):
-                    # Compute output
-                    if TEMPORAL:
-                        state, saliency_map = model.forward(input_ = clip[idx], prev_state = state)
-                    else:
-                        saliency_map = model.forward(input_ = clip[idx])
+                if DOUBLE:
+                    if state == None:
+                        state = (None, None)
+                    for idx in range(clip.size()[0]):
+                        # Compute output
+                        state, saliency_map = model.forward(input_ = clip[idx], prev_state_1 = state[0], prev_state_2 = state[1])
 
-                    count+=1
-                    saliency_map = saliency_map.squeeze(0)
+                        saliency_map = saliency_map.squeeze(0) # Target is 3 dimensional (grayscale image)
 
-                    post_process_saliency_map = (saliency_map-torch.min(saliency_map))/(torch.max(saliency_map)-torch.min(saliency_map))
-                    utils.save_image(post_process_saliency_map, os.path.join(video_dst, "{}.png".format(str(count).zfill(4))))
+                        post_process_saliency_map = (saliency_map-torch.min(saliency_map))/(torch.max(saliency_map)-torch.min(saliency_map))
+                        utils.save_image(post_process_saliency_map, os.path.join(video_dst, "{}.png".format(str(count).zfill(4))))
+
+                else:
+                    for idx in range(clip.size()[0]):
+                        # Compute output
+                        if TEMPORAL:
+                            state, saliency_map = model.forward(input_ = clip[idx], prev_state = state)
+                        else:
+                            saliency_map = model.forward(input_ = clip[idx])
+
+                        count+=1
+                        saliency_map = saliency_map.squeeze(0)
+
+                        post_process_saliency_map = (saliency_map-torch.min(saliency_map))/(torch.max(saliency_map)-torch.min(saliency_map))
+                        utils.save_image(post_process_saliency_map, os.path.join(video_dst, "{}.png".format(str(count).zfill(4))))
 
                 if TEMPORAL:
                     state = repackage_hidden(state)
@@ -229,6 +246,7 @@ def main(dataset_name=dataset_name):
                 clip = Variable(clip.type(dtype).transpose(0,1), requires_grad=False)
                 for idx in range(clip.size()[0]):
                     # Compute output
+
                     if TEMPORAL:
                         state, saliency_map = model.forward(input_ = clip[idx], prev_state = state)
                     else:
@@ -240,8 +258,11 @@ def main(dataset_name=dataset_name):
                     post_process_saliency_map = (saliency_map-torch.min(saliency_map))/(torch.max(saliency_map)-torch.min(saliency_map))
                     utils.save_image(post_process_saliency_map, os.path.join(video_dst, frame_names[idx][0]))
 
+
+
                 if TEMPORAL:
                     state = repackage_hidden(state)
+
 
         print("Video {} done".format(i+STARTING_VIDEO))
 

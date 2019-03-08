@@ -17,36 +17,43 @@ dtype = torch.FloatTensor
 if torch.cuda.is_available():
     dtype = torch.cuda.FloatTensor
 
+"""
+Be sure to check the name of NEW_MODEL before running
+"""
+
 frame_size = (192, 256) # original shape is (360, 640, 3)
 learning_rate = 0.000001 #
 decay_rate = 0.1
 momentum = 0.9
 weight_decay = 1e-4
-epochs = 7
+epochs = 8
 plot_every = 1
 clip_length = 10
-starting_video = 1
-number_of_videos = 700
+starting_video = 601
+number_of_videos = 700 #Reset to 600
 
 VAL_PERC = 0 #percentage of the given data to be used as validation on runtime. In our last experiments we validate after training so we don't use validation on runtime.
 TEMPORAL = True
 FREEZE = False
-RESIDUAL = True
+RESIDUAL = False
+DROPOUT = True
 SALGAN_WEIGHTS = 'model_weights/salgan_salicon.pt' #JuanJo's weights
 #CONV_LSTM_WEIGHTS = './SalConvLSTM.pt' #These are not relevant in this problem after all, SalGAN was trained on a range of 0-255, the ConvLSTM was trained on a 0-1 range so they are incompatible.
 #writer = SummaryWriter('./log') #Tensorboard, uncomment all lines containing writer if you wish to use this visualization tool
 ALPHA = 0.1
 DOUBLE = False
-EMA_LOC = 54     # 30 is the bottleneck
+EMA_LOC = 30     # 30 is the bottleneck
+#EMA_LOC_2 = 54
 PARALLEL = True
 # Parameters
 params = {'batch_size': 1, # number of videos / batch, I need to implement padding if I want to do more than 1, but with DataParallel it's quite messy
           'num_workers': 4,
           'pin_memory': True}
 
-new_model = 'SalEMA{}.pt'.format(EMA_LOC)
-pretrained_model = None
-#new_model = 'SalGAN.pt'
+NEW_MODEL = 'SalEMA{}D.pt'.format(EMA_LOC)
+#NEW_MODEL = 'SalEMA{}&{}.pt'.format(EMA_LOC, EMA_LOC_2)
+pretrained_model = 'SalEMA{}D.pt'.format(EMA_LOC)
+#NEW_MODEL = 'SalGANmidR.pt'
 
 def main(params = params):
 
@@ -80,22 +87,22 @@ def main(params = params):
 
     # The seed pertains to initializing the weights with a normal distribution
     # Using brute force for 100 seeds I found the number 65 to provide a good starting point (one that looks close to a saliency map predicted by the original SalGAN)
-    if new_model == 'SalGANplus.pt':
+    if NEW_MODEL == 'SalGANplus.pt':
         model = SalGANmore.SalGANplus(seed_init=65, freeze=FREEZE)
-        print("Initialized {}".format(new_model))
-    elif 'SalGANmid' in new_model:
+        print("Initialized {}".format(NEW_MODEL))
+    elif 'SalGANmid' in NEW_MODEL:
         model = SalGANmore.SalGANmid(seed_init=65, residual=RESIDUAL, freeze=FREEZE)
-        print("Initialized {}".format(new_model))
-    elif new_model == 'SalGAN.pt':
+        print("Initialized {}".format(NEW_MODEL))
+    elif NEW_MODEL == 'SalGAN.pt':
         model = SalGANmore.SalGAN()
-        print("Initialized {}".format(new_model))
-    elif 'EMA' in new_model:
-        if '2EMA' in new_model:
+        print("Initialized {}".format(NEW_MODEL))
+    elif 'EMA' in NEW_MODEL:
+        if DOUBLE:
             model = SalGAN_EMA.SalGAN_EMA2(alpha=ALPHA, ema_loc_1=EMA_LOC, ema_loc_2=EMA_LOC_2)
-            print("Initialized {}".format(new_model))
+            print("Initialized {}".format(NEW_MODEL))
         else:
-            model = SalGAN_EMA.SalGAN_EMA(alpha=ALPHA, ema_loc=EMA_LOC)
-            print("Initialized {}".format(new_model))
+            model = SalGAN_EMA.SalGAN_EMA(alpha=ALPHA, residual=RESIDUAL, dropout= DROPOUT, ema_loc=EMA_LOC)
+            print("Initialized {} with residual set to {} and dropout set to {}".format(NEW_MODEL, RESIDUAL, DROPOUT))
     else:
         print("Your model was not recognized, check the name of the model and try again.")
         exit()
@@ -108,10 +115,10 @@ def main(params = params):
     if FREEZE:
         # Load only the unfrozen part to the optimizer
 
-        if new_model == 'SalGANplus.pt':
+        if NEW_MODEL == 'SalGANplus.pt':
             optimizer = torch.optim.Adam([{'params': model.Gates.parameters()},{'params': model.final_convs.parameters()}], learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=weight_decay)
 
-        elif 'SalGANmid' in new_model:
+        elif 'SalGANmid' in NEW_MODEL:
             optimizer = torch.optim.Adam([{'params': model.Gates.parameters()}], learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=weight_decay)
 
     else:
@@ -174,14 +181,16 @@ def main(params = params):
                 if VAL_PERC > 0:
                     val_losses.append(val_loss.cpu())
 
-            if PARALLEL == False:
-                torch.save({
-                    'epoch': epoch + 1,
-                    'state_dict': model.cpu().state_dict(),
-                    'optimizer' : optimizer.state_dict()
-                    }, new_model)
+            torch.save({
+                'epoch': epoch + 1,
+                'state_dict': model.cpu().state_dict(),
+                'optimizer' : optimizer.state_dict()
+                }, NEW_MODEL)
 
-                model = model.cuda() #Bring model back to cuda
+            if PARALLEL:
+                model = nn.DataParallel(model).cuda()
+            else:
+                model = model.cuda()
             """
             else:
 
@@ -195,7 +204,7 @@ def main(params = params):
             epoch = epoch - 1
             break
 
-    print("Training started at {} and finished at : {} \n Now saving..".format(starting_time, datetime.datetime.now().replace(microsecond=0)))
+    print("Training of {} started at {} and finished at : {} \n Now saving..".format(NEW_MODEL, starting_time, datetime.datetime.now().replace(microsecond=0)))
 
     # ===================== #
     # ======  Saving ====== #
@@ -205,7 +214,7 @@ def main(params = params):
         'epoch': epoch + 1,
         'state_dict': model.cpu().state_dict(),
         'optimizer' : optimizer.state_dict()
-        }, new_model)
+        }, NEW_MODEL)
 
     """
     hyperparameters = {

@@ -16,14 +16,12 @@ SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGplus_predictions"
 SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGplus_predictions_J"
 SM_DIR = "/imatge/lpanagiotis/projects/saliency/public_html/VideoSalGAN-II"
 SM_DIR = "/imatge/lpanagiotis/work/DHF1K/VideoSalGAN-II"
-SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGema_predictions"
-SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGema30_predictions"
-SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGema54_predictions"
-SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGema61_predictions"
-SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGema7_predictions"
 SM_DIR = "/imatge/lpanagiotis/work/DHF1K/Val.SalEMA61_predictions"
 SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGmid_predictions" # This is with JJ weights
 SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SBCEema54_predictions"
+SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SalEMA7&54_predictions"
+SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SG_predictions"
+SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SalEMA30D_predictions"
 
 RESCALE_GTs = False
 print("Now evaluating on {}".format(SM_DIR))
