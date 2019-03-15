@@ -21,7 +21,7 @@ SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGmid_predictions" # This is with JJ we
 SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SBCEema54_predictions"
 SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SalEMA7&54_predictions"
 SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SG_predictions"
-SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SalEMA30D_predictions"
+SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SalEMA7_predictions"
 
 RESCALE_GTs = False
 print("Now evaluating on {}".format(SM_DIR))

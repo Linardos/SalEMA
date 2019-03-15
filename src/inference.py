@@ -24,20 +24,20 @@ dst
 """
 dataset_name = "DHF1K"
 clip_length = 10 #with 10 clips the loss seems to reach zero very fast
-STARTING_VIDEO = 701
-NUMBER_OF_VIDEOS = 1000# DHF1K offers 700 labeled videos, the other 300 are held back by the authors
-EMA_LOC = 30     # 30 is the bottleneck
+STARTING_VIDEO = 601
+NUMBER_OF_VIDEOS = 700# DHF1K offers 700 labeled videos, the other 300 are held back by the authors
+EMA_LOC = 7     # 30 is the bottleneck
 #EMA_LOC_2 = 54
 RESIDUAL = False
 DOUBLE = False
-DROPOUT = True
+DROPOUT = False
 ALPHA = 0.1
 #pretrained_model = '/imatge/lpanagiotis/work/SalGANmore/src/model_weights/gen_model.pt' # Vanilla SalGAN
 #pretrained_model = './SalGAN.pt'
 #pretrained_model = 'model_weights/salgan_salicon.pt' #JuanJo's weights, set EMA_LOC to None for original SalBCE, otherwise EMA will be added
 #pretrained_model = './SalGANplus.pt'
 #pretrained_model = './SalGANmid.pt'
-pretrained_model = './SalEMA30D.pt'
+pretrained_model = './SalEMA{}D.pt'.format(EMA_LOC)
 #pretrained_model = 'SalEMA{}&{}.pt'.format(EMA_LOC,EMA_LOC_2)
 frame_size = (192, 256)
 # Destination for predictions:

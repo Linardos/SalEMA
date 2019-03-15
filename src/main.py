@@ -26,23 +26,23 @@ learning_rate = 0.000001 #
 decay_rate = 0.1
 momentum = 0.9
 weight_decay = 1e-4
-epochs = 8
+epochs = 7
 plot_every = 1
 clip_length = 10
-starting_video = 601
-number_of_videos = 700 #Reset to 600
+starting_video = 1
+number_of_videos = 600 #Reset to 600
 
 VAL_PERC = 0 #percentage of the given data to be used as validation on runtime. In our last experiments we validate after training so we don't use validation on runtime.
 TEMPORAL = True
 FREEZE = False
 RESIDUAL = False
-DROPOUT = True
+DROPOUT = False
 SALGAN_WEIGHTS = 'model_weights/salgan_salicon.pt' #JuanJo's weights
 #CONV_LSTM_WEIGHTS = './SalConvLSTM.pt' #These are not relevant in this problem after all, SalGAN was trained on a range of 0-255, the ConvLSTM was trained on a 0-1 range so they are incompatible.
 #writer = SummaryWriter('./log') #Tensorboard, uncomment all lines containing writer if you wish to use this visualization tool
 ALPHA = 0.1
 DOUBLE = False
-EMA_LOC = 30     # 30 is the bottleneck
+EMA_LOC = 7     # 30 is the bottleneck
 #EMA_LOC_2 = 54
 PARALLEL = True
 # Parameters
@@ -50,10 +50,11 @@ params = {'batch_size': 1, # number of videos / batch, I need to implement paddi
           'num_workers': 4,
           'pin_memory': True}
 
-NEW_MODEL = 'SalEMA{}D.pt'.format(EMA_LOC)
+NEW_MODEL = 'SalEMA{}.pt'.format(EMA_LOC)
 #NEW_MODEL = 'SalEMA{}&{}.pt'.format(EMA_LOC, EMA_LOC_2)
-pretrained_model = 'SalEMA{}D.pt'.format(EMA_LOC)
-#NEW_MODEL = 'SalGANmidR.pt'
+#pretrained_model = 'SalEMA{}.pt'.format(EMA_LOC)
+pretrained_model = None
+NEW_MODEL = 'SalGANmid.pt'
 
 def main(params = params):
 
