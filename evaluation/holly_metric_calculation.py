@@ -10,54 +10,40 @@ import datetime
 import torch
 from PIL import Image
 
-GT_DIR = "/imatge/lpanagiotis/work/DHF1K/maps"
-FIX_DIR = "/imatge/lpanagiotis/work/DHF1K/fixations"
-SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGplus_predictions"
-SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGplus_predictions_J"
-SM_DIR = "/imatge/lpanagiotis/projects/saliency/public_html/VideoSalGAN-II"
-SM_DIR = "/imatge/lpanagiotis/work/DHF1K/VideoSalGAN-II"
-SM_DIR = "/imatge/lpanagiotis/work/DHF1K/Val.SalEMA61_predictions"
-SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGmid_predictions" # This is with JJ weights
-SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SBCEema54_predictions"
-SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SalEMA7&54_predictions"
-SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SG_predictions"
-SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SalEMA7_predictions"
-
 #===Hollywood has another folder structure
 HOLLY_DIR = "/home/linardos/Hollywood-2/testing/"
+MODEL = "SalEMA30D"
+
+final_metric_list = []
 
 RESCALE_GTs = False
-print("Now evaluating on {}".format(SM_DIR))
+print("Now evaluating on {} predictions".format(MODEL))
 continue_calculations = False
 
-STARTING_VIDEO = 601
-NUMBER_OF_VIDEOS = 700
 
-if continue_calculations:
-    with open('metrics.txt', 'rb') as handle:
-        final_metric_list = pickle.load(handle)
-    STARTING_VIDEO = len(final_metric_list)+1
-
-else:
-    final_metric_list = []
-
-
-def sAUC_sampler(video_number, M=50):
+def sAUC_sampler(video, M=10):
     # A sampler for the shuffled AUC metric. From the ground truths sample images at random; then aggregate them to feed into sAUC.
 
-    videos = list(range(STARTING_VIDEO,NUMBER_OF_VIDEOS+1))
-    videos.remove(video_number) # Remove the video being evaluated.
-    video_sample_inds = np.random.choice(videos, M, replace=False)
+    videos = os.listdir(HOLLY_DIR)
+    videos.remove(video) # Remove the video being evaluated.
+    video_samples = np.random.choice(videos, M, replace=False)
 
     for i in range(M):
-
-        video_sample = os.path.join(FIX_DIR, str(video_sample_inds[i]))
+        video_sample = os.path.join(HOLLY_DIR, str(video_samples[i]), "fixation")
         frames = os.listdir(video_sample)
+        frames.remove("maps") #matlab files
         frame_sample = np.random.choice(frames, 1, replace=False)[0]
 
         sample_img = os.path.join(video_sample, frame_sample)
         sample_img = np.asarray(Image.open(sample_img), dtype=np.float32)
 
+        #apparently in Hollywood, images are not of the same size
+        tested_video = os.path.join(HOLLY_DIR, video, "fixation")
+        tested_video_frames = os.listdir(tested_video)
+        tested_video_frames.remove("maps")
+        tested_video_frame = np.asarray(Image.open(os.path.join(tested_video, tested_video_frames[0])), dtype=np.float32) #Just need the size doesnt matter what we open.
+
+        sample_img = cv2.resize(sample_img, (tested_video_frame.shape[1], tested_video_frame.shape[0]), interpolation=cv2.INTER_AREA)
         if i == 0:
             avg_img = sample_img
         else:
@@ -121,28 +107,32 @@ def inner_worker(n, sAUC_extramap, packed, gt_path, fix_path, sm_path): #packed 
              Cc,
              sim )
 
-start = datetime.datetime.now().replace(microsecond=0)
-for i in range(STARTING_VIDEO, NUMBER_OF_VIDEOS+1):
 
+vids = os.listdir(HOLLY_DIR)
+start = datetime.datetime.now().replace(microsecond=0)
+for i, vid in enumerate(vids):
+
+
+    gt_path = os.path.join(HOLLY_DIR, vid, "maps")
+    fix_path = os.path.join(HOLLY_DIR, vid, "fixation")
     #if i == 57: #Some unknown error occurs at this file, skip it
     #    continue
-    gt_path = os.path.join(GT_DIR, str(i))
-    fix_path = os.path.join(FIX_DIR, str(i))
-    sm_path = os.path.join(SM_DIR, str(i).zfill(4))
+    sm_path = os.path.join(HOLLY_DIR, vid, "{}_predictions".format(MODEL))
 
     gt_files = os.listdir(gt_path)
     fix_files = os.listdir(fix_path)
+    fix_files.remove("maps") #matlab files
     sm_files = os.listdir(sm_path)
 
     video_length = len(gt_files)
     #Now to sort based on their file number. The "key" parameter in sorted is a function based on which the sorting will happen (I use split to exclude the jpg/png from the).
-    gt_files_sorted = sorted(gt_files, key = lambda x: int(x.split(".")[0]))
-    fix_files_sorted = sorted(fix_files, key = lambda x: int(x.split(".")[0]))
-    sm_files_sorted = sorted(sm_files, key = lambda x: int(x.split(".")[0]))
+    gt_files_sorted = sorted(gt_files)
+    fix_files_sorted = sorted(fix_files)
+    sm_files_sorted = sorted(sm_files)
     pack = zip(gt_files_sorted, fix_files_sorted, sm_files_sorted)
-    print("Files related to video {} sorted.".format(i))
+    print("Files related to video {} sorted.".format(vid))
 
-    sAUC_extramap = sAUC_sampler(video_number=i)
+    sAUC_extramap = sAUC_sampler(video=vid)
     #Uncomment this segment if you want to debug something, so as to avoid parallel calculations and exit at 5 iterations.
     """
     for n, packed in enumerate(pack):
@@ -187,7 +177,7 @@ Nss = np.mean([y[2] for y in final_metric_list])
 Cc = np.mean([y[3] for y in final_metric_list])
 Sim = np.mean([y[4] for y in final_metric_list])
 
-print("Evaluation on directory {} finished.".format(SM_DIR))
+print("Evaluation on {} finished.".format(MODEL))
 print("Final average of metrics is:")
 print("AUC-JUDD is {}".format(Aucj))
 print("AUC-SHUFFLED is {}".format(Aucs))

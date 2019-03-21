@@ -33,7 +33,7 @@ starting_video = 1
 number_of_videos = 600 #Reset to 600
 
 VAL_PERC = 0 #percentage of the given data to be used as validation on runtime. In our last experiments we validate after training so we don't use validation on runtime.
-TEMPORAL = True
+TEMPORAL = False
 FREEZE = False
 RESIDUAL = False
 DROPOUT = False
@@ -51,10 +51,11 @@ params = {'batch_size': 1, # number of videos / batch, I need to implement paddi
           'pin_memory': True}
 
 NEW_MODEL = 'SalEMA{}.pt'.format(EMA_LOC)
+NEW_MODEL = 'SalBCE.pt'
 #NEW_MODEL = 'SalEMA{}&{}.pt'.format(EMA_LOC, EMA_LOC_2)
 #pretrained_model = 'SalEMA{}.pt'.format(EMA_LOC)
 pretrained_model = None
-NEW_MODEL = 'SalGANmid.pt'
+#NEW_MODEL = 'SalGANmid.pt'
 
 def main(params = params):
 
@@ -94,7 +95,7 @@ def main(params = params):
     elif 'SalGANmid' in NEW_MODEL:
         model = SalGANmore.SalGANmid(seed_init=65, residual=RESIDUAL, freeze=FREEZE)
         print("Initialized {}".format(NEW_MODEL))
-    elif NEW_MODEL == 'SalGAN.pt':
+    elif NEW_MODEL == 'SalBCE.pt':
         model = SalGANmore.SalGAN()
         print("Initialized {}".format(NEW_MODEL))
     elif 'EMA' in NEW_MODEL:
