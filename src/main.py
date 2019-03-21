@@ -10,7 +10,6 @@ import torch.backends.cudnn as cudnn
 from torch import nn
 from torch.utils import data
 from torch.autograd import Variable
-from tensorboardX import SummaryWriter
 from data_loader import DHF1K_frames
 
 dtype = torch.FloatTensor
@@ -39,7 +38,6 @@ RESIDUAL = False
 DROPOUT = False
 SALGAN_WEIGHTS = 'model_weights/salgan_salicon.pt' #JuanJo's weights
 #CONV_LSTM_WEIGHTS = './SalConvLSTM.pt' #These are not relevant in this problem after all, SalGAN was trained on a range of 0-255, the ConvLSTM was trained on a 0-1 range so they are incompatible.
-#writer = SummaryWriter('./log') #Tensorboard, uncomment all lines containing writer if you wish to use this visualization tool
 ALPHA = 0.1
 DOUBLE = False
 EMA_LOC = 7     # 30 is the bottleneck
