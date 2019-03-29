@@ -23,6 +23,7 @@ pretrained_model,
 dst
 """
 dataset_name = "Hollywood-2"
+dataset_name = "DHF1K"
 clip_length = 10 #with 10 clips the loss seems to reach zero very fast
 STARTING_VIDEO = 601
 NUMBER_OF_VIDEOS = 700# DHF1K offers 700 labeled videos, the other 300 are held back by the authors
@@ -36,13 +37,13 @@ ALPHA = 0.1
 #pretrained_model = './SalGAN.pt'
 #pretrained_model = 'model_weights/salgan_salicon.pt' #JuanJo's weights, set EMA_LOC to None for original SalBCE, otherwise EMA will be added
 #pretrained_model = './SalGANplus.pt'
-#pretrained_model = './SalGANmid.pt'
-pretrained_model = 'SalEMA{}D.pt'.format(EMA_LOC)
+pretrained_model = './SalGANmid.pt' #SalGANmid stands for SalCLSTM30
+pretrained_model = './SalEMA{}D_H.pt'.format(EMA_LOC)
 #pretrained_model = 'SalEMA{}&{}.pt'.format(EMA_LOC,EMA_LOC_2)
 frame_size = (192, 256)
 # Destination for predictions:
-dst = "/imatge/lpanagiotis/work/{}/{}_predictions".format(dataset_name, pretrained_model.replace(".pt", ""))
 dst = "/home/linardos/Hollywood-2/testing"
+dst = "/imatge/lpanagiotis/work/{}/{}a{}_predictions".format(dataset_name, pretrained_model.replace(".pt", ""), ALPHA)
 #dst = "/imatge/lpanagiotis/work/{}/SG_predictions".format(dataset_name)
 frames_path = "/imatge/lpanagiotis/work/DHF1K/frames"
 gt_path = "/imatge/lpanagiotis/work/DHF1K/maps"
@@ -114,7 +115,7 @@ def main(dataset_name=dataset_name):
 
     elif pretrained_model == './SalGANmid.pt':
 
-        model = SalGANmore.SalGANmid(seed_init=65, freeze=False)
+        model = SalGANmore.SalGANmid(seed_init=65, freeze=False, residual=False)
 
         temp = torch.load(pretrained_model)['state_dict']
         # Because of dataparallel there is contradiction in the name of the keys so we need to remove part of the string in the keys:.

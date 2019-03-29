@@ -10,18 +10,13 @@ import datetime
 import torch
 from PIL import Image
 
+model_name = "rawSalEMA30Da0.15"
 GT_DIR = "/imatge/lpanagiotis/work/DHF1K/maps"
 FIX_DIR = "/imatge/lpanagiotis/work/DHF1K/fixations"
-SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGplus_predictions"
 SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGplus_predictions_J"
-SM_DIR = "/imatge/lpanagiotis/projects/saliency/public_html/VideoSalGAN-II"
-SM_DIR = "/imatge/lpanagiotis/work/DHF1K/VideoSalGAN-II"
-SM_DIR = "/imatge/lpanagiotis/work/DHF1K/Val.SalEMA61_predictions"
-SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SGmid_predictions" # This is with JJ weights
-SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SBCEema54_predictions"
-SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SalEMA7&54_predictions"
-SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SG_predictions"
-SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SalEMA7_predictions"
+SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SalBCE_predictions"
+SM_DIR = "/imatge/lpanagiotis/work/DHF1K/rawSalEMA30Da0.15_predictions"
+SM_DIR = "/imatge/lpanagiotis/work/DHF1K/{}_predictions".format(model_name)
 
 #===Hollywood has another folder structure
 HOLLY_DIR = "/home/linardos/Hollywood-2/testing/"
@@ -31,12 +26,12 @@ print("Now evaluating on {}".format(SM_DIR))
 continue_calculations = False
 
 STARTING_VIDEO = 601
-NUMBER_OF_VIDEOS = 700
+NUMBER_OF_VIDEOS = 700 #Does it overfit noise?
 
 if continue_calculations:
     with open('metrics.txt', 'rb') as handle:
         final_metric_list = pickle.load(handle)
-    STARTING_VIDEO = len(final_metric_list)+1
+    STARTING_VIDEO += len(final_metric_list)
 
 else:
     final_metric_list = []
@@ -180,6 +175,9 @@ for i in range(STARTING_VIDEO, NUMBER_OF_VIDEOS+1):
 
     with open('metrics.txt', 'wb') as handle:
         pickle.dump(final_metric_list, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+metrics_to_plot = np.array(final_metric_list)
+np.save("{}_metrics".format(model_name), metrics_to_plot)
 
 Aucj = np.mean([y[0] for y in final_metric_list])
 Aucs = np.mean([y[1] for y in final_metric_list])

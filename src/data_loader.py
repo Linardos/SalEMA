@@ -164,7 +164,6 @@ class Hollywood_frames(data.Dataset):
 
             count += 1
             if load_gt:
-              # This is not correct, I never used the gt to train. Will need to change the code to load them.
               gt_files = os.listdir(os.path.join(self.root_path, str(i), "maps"))
               gt_files_sorted = sorted(gt_files)
               pack = zip(gt_files_sorted, frame_files_sorted)

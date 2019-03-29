@@ -12,7 +12,7 @@ from PIL import Image
 
 #===Hollywood has another folder structure
 HOLLY_DIR = "/home/linardos/Hollywood-2/testing/"
-MODEL = "SalEMA30D"
+MODEL = "SalGANmid"
 
 final_metric_list = []
 

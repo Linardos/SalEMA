@@ -10,7 +10,7 @@ import torch.backends.cudnn as cudnn
 from torch import nn
 from torch.utils import data
 from torch.autograd import Variable
-from data_loader import DHF1K_frames
+from data_loader import DHF1K_frames, Hollywood_frames
 
 dtype = torch.FloatTensor
 if torch.cuda.is_available():
@@ -19,28 +19,28 @@ if torch.cuda.is_available():
 """
 Be sure to check the name of NEW_MODEL before running
 """
-
+dataset_name = "Hollywood-2"
 frame_size = (192, 256) # original shape is (360, 640, 3)
-learning_rate = 0.000001 #
+learning_rate = 0.0000001 # Added another 0 for hollywood
 decay_rate = 0.1
 momentum = 0.9
 weight_decay = 1e-4
-epochs = 7
+epochs = 7+3
 plot_every = 1
 clip_length = 10
 starting_video = 1
 number_of_videos = 600 #Reset to 600
 
 VAL_PERC = 0 #percentage of the given data to be used as validation on runtime. In our last experiments we validate after training so we don't use validation on runtime.
-TEMPORAL = False
+TEMPORAL = True
 FREEZE = False
 RESIDUAL = False
-DROPOUT = False
+DROPOUT = True
 SALGAN_WEIGHTS = 'model_weights/salgan_salicon.pt' #JuanJo's weights
 #CONV_LSTM_WEIGHTS = './SalConvLSTM.pt' #These are not relevant in this problem after all, SalGAN was trained on a range of 0-255, the ConvLSTM was trained on a 0-1 range so they are incompatible.
 ALPHA = 0.1
 DOUBLE = False
-EMA_LOC = 7     # 30 is the bottleneck
+EMA_LOC = 30     # 30 is the bottleneck
 #EMA_LOC_2 = 54
 PARALLEL = True
 # Parameters
@@ -48,11 +48,12 @@ params = {'batch_size': 1, # number of videos / batch, I need to implement paddi
           'num_workers': 4,
           'pin_memory': True}
 
-NEW_MODEL = 'SalEMA{}.pt'.format(EMA_LOC)
-NEW_MODEL = 'SalBCE.pt'
+NEW_MODEL = 'SalEMA{}D_H.pt'.format(EMA_LOC)
+#NEW_MODEL = 'SalBCE.pt'
 #NEW_MODEL = 'SalEMA{}&{}.pt'.format(EMA_LOC, EMA_LOC_2)
 #pretrained_model = 'SalEMA{}.pt'.format(EMA_LOC)
-pretrained_model = None
+pretrained_model = 'SalEMA{}D_H.pt'.format(EMA_LOC)
+pretrained_model = 'rawSalEMA{}D.pt'.format(EMA_LOC)
 #NEW_MODEL = 'SalGANmid.pt'
 
 def main(params = params):
@@ -61,27 +62,42 @@ def main(params = params):
     # ================ Data Loading ===================
 
     #Expect Error if either validation size or train size is 1
-    train_set = DHF1K_frames(
-        number_of_videos = number_of_videos,
-        starting_video = starting_video,
-        clip_length = clip_length,
-        resolution = frame_size,
-        val_perc = VAL_PERC,
-        split = "train")
-    print("Size of train set is {}".format(len(train_set)))
-    train_loader = data.DataLoader(train_set, **params)
-
-    if VAL_PERC > 0:
-        val_set = DHF1K_frames(
+    if dataset_name == "DHF1K":
+        train_set = DHF1K_frames(
             number_of_videos = number_of_videos,
             starting_video = starting_video,
             clip_length = clip_length,
             resolution = frame_size,
             val_perc = VAL_PERC,
-            split = "validation")
-        print("Size of validation set is {}".format(len(val_set)))
-        val_loader = data.DataLoader(val_set, **params)
+            split = "train")
+        print("Size of train set is {}".format(len(train_set)))
+        train_loader = data.DataLoader(train_set, **params)
 
+        if VAL_PERC > 0:
+            val_set = DHF1K_frames(
+                number_of_videos = number_of_videos,
+                starting_video = starting_video,
+                clip_length = clip_length,
+                resolution = frame_size,
+                val_perc = VAL_PERC,
+                split = "validation")
+            print("Size of validation set is {}".format(len(val_set)))
+            val_loader = data.DataLoader(val_set, **params)
+
+    elif dataset_name == "Hollywood-2":
+        print("Commencing inference for dataset {}".format(dataset_name))
+        train_set = Hollywood_frames(
+            root_path = "/imatge/lpanagiotis/work/Hollywood-2/training",
+            #root_path = "/home/linardosHollywood-2/training",
+            clip_length = clip_length,
+            resolution = frame_size,
+            load_gt = True)
+        video_name_list = train_set.video_names() #match an index to the sample video name
+        train_loader = data.DataLoader(train_set, **params)
+
+    else:
+        print('Your model was not recognized. Check the name again.')
+        exit()
     # =================================================
     # ================ Define Model ===================
 
@@ -289,6 +305,9 @@ def train(train_loader, model, criterion, optimizer, epoch, n_iter):
     video_losses = []
     print("Now commencing epoch {}".format(epoch))
     for i, video in enumerate(train_loader):
+        if i == 956 or i == 957:
+            #some weird bug happens there
+            continue
         #print(type(video))
         accumulated_losses = []
         start = datetime.datetime.now().replace(microsecond=0)
@@ -320,8 +339,8 @@ def train(train_loader, model, criterion, optimizer, epoch, n_iter):
 
                     saliency_map = saliency_map.squeeze(0) # Target is 3 dimensional (grayscale image)
                     if saliency_map.size() != gtruths[idx].size():
-                        print(saliency_map.size())
-                        print(gtruths[idx].size())
+                        #print(saliency_map.size())
+                        #print(gtruths[idx].size())
                         a, b, c, _ = saliency_map.size()
                         saliency_map = torch.cat([saliency_map, torch.zeros(a, b, c, 1).cuda()], 3) #because of upsampling we need to concatenate another column of zeroes. The original number is odd so it is impossible for upsampling to get an odd number as it scales by 2
 
@@ -389,8 +408,8 @@ def train(train_loader, model, criterion, optimizer, epoch, n_iter):
                 state = repackage_hidden(state)
 
             else:
-                print(type(clip))
-                print(clip.size())
+                #print(type(clip))
+                #print(clip.size())
                 for idx in range(clip.size()[0]):
                     saliency_map = model.forward(clip[idx])
                     saliency_map = saliency_map.squeeze(0)
