@@ -34,3 +34,7 @@ We performed further experiments by tampering with the position of the EMA, but 
 |SalEMA54 (Decoder) |	0.883	|0.734|	2.149	|0.401|	0.276|
 |SalEMA61 Tuned |	0.888	| 0.681	| 2.394|	0.438|	0.354|
 |SalEMA7&54 (Encoder&Decoder)	| 0.828	| 0.561	| 1.403	| 0.366	| 0.344 |
+
+Qualitative Results on video #664 (EMA shown to improve NSS a lot in this particular sample)
+
+![QResults](https://github.com/Linardos/VideoSalGAN-II/blob/master/QResults.png)
