@@ -133,6 +133,9 @@ class DHF1K_frames(data.Dataset):
 class Hollywood_frames(data.Dataset):
 
   def __init__(self, clip_length, resolution=None, root_path = "~/work/Hollywood-2/testing/", load_gt = False):
+        """
+        Frames should be under a folder "images" and ground truths under folder named "maps"
+        """
 
         self.cl = clip_length
         self.root_path = root_path # in our case it's salgan saliency maps
@@ -163,21 +166,11 @@ class Hollywood_frames(data.Dataset):
             self.video_name_list.append(i)
 
             count += 1
-            if load_gt:
-              gt_files = os.listdir(os.path.join(self.root_path, str(i), "maps"))
-              gt_files_sorted = sorted(gt_files)
-              pack = zip(gt_files_sorted, frame_files_sorted)
-
-              # Make dictionary where keys are the saliency maps and values are the ground truths
-              gt_frame_pairings = {}
-              for gt, frame in pack:
-                  gt_frame_pairings[frame] = gt
-
-              self.gts_list.append(gt_frame_pairings)
 
             if count%50==0:
               print("Video {} (Number {}) finished.".format(i, count))
               print("Time elapsed so far: {}".format(datetime.datetime.now().replace(microsecond=0)-start))
+
 
   def video_names(self):
       return self.video_name_list
@@ -191,14 +184,11 @@ class Hollywood_frames(data.Dataset):
         'Generates one sample of data'
         # Select sample video (frame list), in our case saliency map list
         frames = self.video_list[video_index]
-        if self.load_gt:
-          gts = self.gts_list[video_index]
-
 
         data = []
         gt = []
         packed = []
-        print(frames[0])
+        #print("Frame: {}".format(frames[0]))
         for i, path_to_frame in enumerate(frames):
 
           X = cv2.imread(path_to_frame)
@@ -213,14 +203,20 @@ class Hollywood_frames(data.Dataset):
           data.append(X.unsqueeze(0))
           # Load and preprocess ground truth (saliency maps)
           if self.load_gt:
-
-            y = cv2.imread(path_to_frame, 0) # Load as grayscale
+            path_to_gt = path_to_frame.replace("images", "maps")
+            y = cv2.imread(path_to_gt, 0) # Load as grayscale
             if self.resolution!=None:
               y = cv2.resize(y, (self.resolution[1], self.resolution[0]), interpolation=cv2.INTER_AREA)
             y = (y-np.min(y))/(np.max(y)-np.min(y))
             y = torch.FloatTensor(y)
 
             gt.append(y.unsqueeze(0))
+
+            """
+            print("frame: {}".format(path_to_frame))
+            print("gtruth: {}".format(path_to_gt))
+            exit()
+            """
 
           if (i+1)%self.cl == 0 or i == (len(frames)-1):
 

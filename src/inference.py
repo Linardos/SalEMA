@@ -38,6 +38,7 @@ ALPHA = 0.1
 #pretrained_model = 'model_weights/salgan_salicon.pt' #JuanJo's weights, set EMA_LOC to None for original SalBCE, otherwise EMA will be added
 #pretrained_model = './SalGANplus.pt'
 pretrained_model = './SalGANmid.pt' #SalGANmid stands for SalCLSTM30
+pretrained_model = './SalEMA{}D.pt'.format(EMA_LOC)
 pretrained_model = './SalEMA{}D_H.pt'.format(EMA_LOC)
 #pretrained_model = 'SalEMA{}&{}.pt'.format(EMA_LOC,EMA_LOC_2)
 frame_size = (192, 256)
@@ -237,7 +238,11 @@ def main(dataset_name=dataset_name):
                     for idx in range(clip.size()[0]):
                         # Compute output
                         if TEMPORAL:
+                            #import time
+                            #start = time.time()
                             state, saliency_map = model.forward(input_ = clip[idx], prev_state = state)
+                            #print("Inference time of 1 frame is: {}".format(start-time.time()))
+                            #exit()
                         else:
                             saliency_map = model.forward(input_ = clip[idx])
 

@@ -49,11 +49,12 @@ params = {'batch_size': 1, # number of videos / batch, I need to implement paddi
           'pin_memory': True}
 
 NEW_MODEL = 'SalEMA{}D_H.pt'.format(EMA_LOC)
+NEW_MODEL = 'SalGANmid_H.pt'
 #NEW_MODEL = 'SalBCE.pt'
 #NEW_MODEL = 'SalEMA{}&{}.pt'.format(EMA_LOC, EMA_LOC_2)
 #pretrained_model = 'SalEMA{}.pt'.format(EMA_LOC)
+pretrained_model = 'SalGANmid.pt'
 pretrained_model = 'SalEMA{}D_H.pt'.format(EMA_LOC)
-pretrained_model = 'rawSalEMA{}D.pt'.format(EMA_LOC)
 #NEW_MODEL = 'SalGANmid.pt'
 
 def main(params = params):
