@@ -37,5 +37,5 @@ We performed further experiments by tampering with the position of the EMA, but 
 
 Qualitative Results on video #664 (EMA shown to improve NSS a lot in this particular sample)
 
-![QResults](https://github.com/Linardos/VideoSalGAN-II/blob/master/QResultsEMAbetter.jpg)
-![QResults](https://github.com/Linardos/VideoSalGAN-II/blob/master/QResultsCLSTMbetter.jpg)
+![QResults](https://github.com/Linardos/VideoSalGAN-II/blob/master/QResultEMAbetter.jpg)
+![QResults](https://github.com/Linardos/VideoSalGAN-II/blob/master/QResultCLSTMbetter.jpg)
