@@ -48,13 +48,13 @@ params = {'batch_size': 1, # number of videos / batch, I need to implement paddi
           'num_workers': 4,
           'pin_memory': True}
 
-NEW_MODEL = 'SalEMA{}D_H.pt'.format(EMA_LOC)
 NEW_MODEL = 'SalGANmid_H.pt'
+NEW_MODEL = 'SalEMA{}D_H.pt'.format(EMA_LOC)
 #NEW_MODEL = 'SalBCE.pt'
 #NEW_MODEL = 'SalEMA{}&{}.pt'.format(EMA_LOC, EMA_LOC_2)
 #pretrained_model = 'SalEMA{}.pt'.format(EMA_LOC)
 pretrained_model = 'SalGANmid.pt'
-pretrained_model = 'SalEMA{}D_H.pt'.format(EMA_LOC)
+pretrained_model = 'rawSalEMA{}D.pt'.format(EMA_LOC)
 #NEW_MODEL = 'SalGANmid.pt'
 
 def main(params = params):
@@ -64,6 +64,7 @@ def main(params = params):
 
     #Expect Error if either validation size or train size is 1
     if dataset_name == "DHF1K":
+        print("Commencing training on dataset {}".format(dataset_name))
         train_set = DHF1K_frames(
             number_of_videos = number_of_videos,
             starting_video = starting_video,
@@ -86,7 +87,7 @@ def main(params = params):
             val_loader = data.DataLoader(val_set, **params)
 
     elif dataset_name == "Hollywood-2":
-        print("Commencing inference for dataset {}".format(dataset_name))
+        print("Commencing training on dataset {}".format(dataset_name))
         train_set = Hollywood_frames(
             root_path = "/imatge/lpanagiotis/work/Hollywood-2/training",
             #root_path = "/home/linardosHollywood-2/training",
@@ -306,9 +307,11 @@ def train(train_loader, model, criterion, optimizer, epoch, n_iter):
     video_losses = []
     print("Now commencing epoch {}".format(epoch))
     for i, video in enumerate(train_loader):
+        """
         if i == 956 or i == 957:
             #some weird bug happens there
             continue
+        """
         #print(type(video))
         accumulated_losses = []
         start = datetime.datetime.now().replace(microsecond=0)

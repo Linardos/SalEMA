@@ -12,10 +12,12 @@ from PIL import Image
 
 #===Hollywood has another folder structure
 HOLLY_DIR = "/home/linardos/Hollywood-2/testing/"
-MODEL = "SalGANmid"
+MODEL = "SalGANmid_H"
+MODEL = "SalEMA30D_H"
 
 final_metric_list = []
 
+SAVE_METRICS = True
 RESCALE_GTs = False
 print("Now evaluating on {} predictions".format(MODEL))
 continue_calculations = False
@@ -130,7 +132,7 @@ for i, vid in enumerate(vids):
     fix_files_sorted = sorted(fix_files)
     sm_files_sorted = sorted(sm_files)
     pack = zip(gt_files_sorted, fix_files_sorted, sm_files_sorted)
-    print("Files related to video {} sorted.".format(vid))
+    print("Files related to video {} sorted.".format(fix_path))
 
     sAUC_extramap = sAUC_sampler(video=vid)
     #Uncomment this segment if you want to debug something, so as to avoid parallel calculations and exit at 5 iterations.
@@ -170,6 +172,9 @@ for i, vid in enumerate(vids):
 
     with open('metrics.txt', 'wb') as handle:
         pickle.dump(final_metric_list, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+if SAVE_METRICS:
+    np.save("{}_metrics".format(MODEL),final_metric_list)
 
 Aucj = np.mean([y[0] for y in final_metric_list])
 Aucs = np.mean([y[1] for y in final_metric_list])

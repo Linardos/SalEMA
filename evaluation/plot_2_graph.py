@@ -8,7 +8,7 @@ def main():
     mean = [{}, {}]
 
 
-    data = load_files("./SalEMA30_metrics.npy", "./SGmid_metrics.npy")
+    data = load_files("./SalEMA30_metrics.npy", "./SalGANmid_metrics.npy")
     for i, x in enumerate(metrics):
 
 
@@ -19,8 +19,14 @@ def main():
         #np.nan_to_num(data_substracted)
         #print(data_substracted)
 
+
+
         x_positive = np.where( data_substracted >= 0 )
         x_negative = np.where( data_substracted < 0 )
+
+        if x == "NSS":
+            print("SalEMA is better by a margin higher than 4 at {}".format(np.where(data_substracted > 1.5)))
+            print("SalCLSTM is better by a margin higher than 4 at {}".format(np.where(data_substracted < -1.5)))
 
         y_positive = data_substracted[x_positive]
         y_negative = data_substracted[x_negative]
