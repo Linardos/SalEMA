@@ -25,8 +25,8 @@ Evaluation on DHF1K showed that our augmentations improve performance over the b
 
 Qualitative Results on video #664 (EMA shown to improve NSS a lot in this particular sample)
 
-![QResults](https://github.com/Linardos/VideoSalGAN-II/blob/gh-pages/QResultsEMA.png)
+![QResults](https://raw.githubusercontent.com/Linardos/SalEMA/gh-pages/QResultsEMA.png)
 
 Qualitative Results on video #601 (EMA shown to do worse on NSS in this particular sample)
 
-![QResults](https://github.com/Linardos/VideoSalGAN-II/blob/gh-pages/QResultsCLSTM.png)
+![QResults](https://raw.githubusercontent.com/Linardos/SalEMA/gh-pages/QResultsCLSTM.png)
