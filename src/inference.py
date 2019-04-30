@@ -3,7 +3,7 @@ import os
 import datetime
 import numpy as np
 from model import SalGANmore, SalEMA
-from args import get_parser
+from args import get_inference_parser
 import pickle
 import torch
 from torchvision import transforms, utils
@@ -18,7 +18,7 @@ from data_loader import DHF1K_frames, Ego_frames, Hollywood_frames
 Before inferring check:
 EMA_LOC,
 args.residual,
-pretrained_model,
+pt_model,
 dst
 """
 """
@@ -28,8 +28,8 @@ dataset_name = "DHF1K"
 """
 CLIP_LENGTH = 10
 EMA_LOC = 30 # 30 is the bottleneck
-pretrained_model = './SalEMA{}Afinal.pt'.format(EMA_LOC)
-#pretrained_model = 'SalEMA{}&{}.pt'.format(EMA_LOC,EMA_LOC_2)
+pt_model = './SalEMA{}Afinal.pt'.format(EMA_LOC)
+#pt_model = 'SalEMA{}&{}.pt'.format(EMA_LOC,EMA_LOC_2)
 frame_size = (192, 256)
 # Destination for predictions:
 
@@ -44,7 +44,7 @@ params = {'batch_size': 1,
 def main(args):
 
     if args.dataset == "DHF1K" or "other":
-        dst = os.path.join(args.dst, "{}_predictions".format(pretrained_model.replace(".pt", "")))
+        dst = os.path.join(args.dst, "{}_predictions".format(pt_model.replace(".pt", "")))
     elif args.dataset == "Hollywood-2" or "UCF-sports":
         dst = os.path.join(args.dst, "/{}/testing".format(args.dataset)) #Hollywood or UCF-sports
     else:
@@ -87,39 +87,39 @@ def main(args):
     # Using same kernel size as they do in the DHF1K paper
     # Amaia uses default hidden size 128
     # input size is 1 since we have grayscale images
-    if 'SalCLSTM30' in args.pretrained_model:
+    if 'SalCLSTM30' in args.pt_model:
 
         model = SalGANmore.SalCLSTM30(seed_init=65, freeze=False, residual=False)
 
-        load_model(args.pretrained_model, model)
+        load_model(args.pt_model, model)
         print("Pre-trained model SalCLSTM30 loaded succesfully")
 
         TEMPORAL = True
 
-    elif 'SalGAN' in args.pretrained_model:
+    elif 'SalGAN' in args.pt_model:
 
         model = SalGANmore.SalGAN()
 
-        load_model(args.pretrained_model, model)
+        load_model(args.pt_model, model)
         print("Pre-trained model tuned SalGAN loaded succesfully")
 
         TEMPORAL = False
 
-    elif "EMA" in args.pretrained_model:
+    elif "EMA" in args.pt_model:
         if args.double_ema:
             model = SalEMA.SalEMA2(alpha=args.alpha, ema_loc_1=EMA_LOC, ema_loc_2=EMA_LOC_2)
         else:
             model = SalEMA.SalEMA(alpha=args.alpha, residual=args.residual, dropout = args.dropout, ema_loc=EMA_LOC)
 
-        load_model(args.pretrained_model, model)
-        print("Pre-trained model {} loaded succesfully".format(args.pretrained_model))
+        load_model(args.pt_model, model)
+        print("Pre-trained model {} loaded succesfully".format(args.pt_model))
         if args.residual:
             print("Residual connection is included.")
 
         TEMPORAL = True
         print("Alpha tuned to {}".format(model.alpha))
 
-    elif args.pretrained_model == 'model_weights/salgan_salicon.pt':
+    elif args.pt_model == 'model_weights/salgan_salicon.pt':
 
         if EMA_LOC == None:
             model = SalGANmore.SalGAN()
@@ -130,12 +130,12 @@ def main(args):
             TEMPORAL = True
             print("Pre-trained model SalBCE loaded succesfully. EMA inference will commence soon.")
 
-        model.salgan.load_state_dict(torch.load(args.pretrained_model)['state_dict'])
+        model.salgan.load_state_dict(torch.load(args.pt_model)['state_dict'])
 
 
-    elif args.pretrained_model == '/imatge/lpanagiotis/work/SalGANmore/src/model_weights/gen_model.pt':
+    elif args.pt_model == '/imatge/lpanagiotis/work/SalGANmore/src/model_weights/gen_model.pt':
         model = SalGANmore.SalGAN()
-        model.salgan.load_state_dict(torch.load(args.pretrained_model))
+        model.salgan.load_state_dict(torch.load(args.pt_model))
         print("Pre-trained model vanilla SalGAN loaded succesfully")
 
         TEMPORAL = False
@@ -211,7 +211,7 @@ def main(args):
 
         elif args.dataset == "Hollywood-2" or "UCF-sports":
 
-            video_dst = os.path.join(dst, video_name_list[i], '{}_predictions'.format(args.pretrained_model.replace(".pt", "")))
+            video_dst = os.path.join(dst, video_name_list[i], '{}_predictions'.format(args.pt_model.replace(".pt", "")))
             print("Destination: {}".format(video_dst))
             if not os.path.exists(video_dst):
                 os.mkdir(video_dst)
@@ -250,9 +250,9 @@ def main(args):
                     state = repackage_hidden(state)
             print("Video {} done".format(i+int(args.start)))
 
-def load_model(pretrained_model, new_model):
+def load_model(pt_model, new_model):
 
-    temp = torch.load(pretrained_model)['state_dict']
+    temp = torch.load(pt_model)['state_dict']
     # Because of dataparallel there is contradiction in the name of the keys so we need to remove part of the string in the keys:.
     from collections import OrderedDict
     checkpoint = OrderedDict()
@@ -272,6 +272,6 @@ def repackage_hidden(h):
         return tuple(repackage_hidden(v) for v in h)
 
 if __name__ == '__main__':
-    parser = get_parser()
+    parser = get_inference_parser()
     args = parser.parse_args()
     main(args)

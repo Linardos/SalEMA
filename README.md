@@ -12,5 +12,6 @@ In both of these works, the goal is to explore how a model trained on static ima
 
 ## Inference
 
+You may use our pretrained model for inference following the guidelines
 An example of how to perform inference on DHF1K validation set:
-```python inference.py -dataset=DHF1K -pretrained_model=SalEMA30A.pt -start=600 -end=700 -dst=/path/to/output -src=/path/to/DHF1K/frames```
+```python inference.py -dataset=DHF1K -pretrained_model=SalEMA30.pt -start=600 -end=700 -dst=/path/to/output -src=/path/to/DHF1K/frames```
