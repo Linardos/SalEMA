@@ -22,12 +22,13 @@ RESIDUAL,
 pretrained_model,
 dst
 """
-dataset_name = "DHF1K"
+dataset_name = "UCF-sports"
 dataset_name = "Hollywood-2"
-clip_length = 10 #with 10 clips the loss seems to reach zero very fast
+dataset_name = "DHF1K"
+clip_length = 10
 STARTING_VIDEO = 601
-NUMBER_OF_VIDEOS = 700# DHF1K offers 700 labeled videos, the other 300 are held back by the authors
-EMA_LOC = 30     # 30 is the bottleneck
+NUMBER_OF_VIDEOS = 700 # DHF1K offers 700 labeled videos, the other 300 are held back by the authors
+EMA_LOC = 30 # 30 is the bottleneck
 #EMA_LOC_2 = 54
 RESIDUAL = False
 DOUBLE = False
@@ -40,11 +41,16 @@ ALPHA = 0.1
 pretrained_model = './SalEMA{}D.pt'.format(EMA_LOC)
 pretrained_model = './SalEMA{}D_H.pt'.format(EMA_LOC)
 pretrained_model = './SalGANmid_H.pt' #SalGANmid stands for SalCLSTM30
+pretrained_model = './SalEMA{}D_HU.pt'.format(EMA_LOC)
+pretrained_model = './SalGANmid_HU.pt' #SalGANmid stands for SalCLSTM30
+pretrained_model = './SalEMA{}Afinal.pt'.format(EMA_LOC)
 #pretrained_model = 'SalEMA{}&{}.pt'.format(EMA_LOC,EMA_LOC_2)
 frame_size = (192, 256)
 # Destination for predictions:
-dst = "/imatge/lpanagiotis/work/{}/{}a{}_predictions".format(dataset_name, pretrained_model.replace(".pt", ""), ALPHA)
-dst = "/home/linardos/Hollywood-2/testing"
+if dataset_name == "DHF1K":
+    dst = "/imatge/lpanagiotis/work/{}/{}_predictions".format(dataset_name, pretrained_model.replace(".pt", "")) #DHF1K
+else:
+    dst = "/imatge/lpanagiotis/work/{}/testing".format(dataset_name) #Hollywood or UCF-sports
 #dst = "/imatge/lpanagiotis/work/{}/SG_predictions".format(dataset_name)
 frames_path = "/imatge/lpanagiotis/work/DHF1K/frames"
 gt_path = "/imatge/lpanagiotis/work/DHF1K/maps"
@@ -79,7 +85,7 @@ def main(dataset_name=dataset_name):
             resolution = frame_size)
         activity = dataset.match_i_to_act
 
-    elif dataset_name == "Hollywood-2":
+    elif dataset_name == "Hollywood-2" or "UCF-sports":
         print("Commencing inference for dataset {}".format(dataset_name))
         dataset = Hollywood_frames(
             root_path = dst,
@@ -168,6 +174,7 @@ def main(dataset_name=dataset_name):
             print("Residual connection is included.")
 
         TEMPORAL = True
+        print("Alpha tuned to {}".format(model.alpha))
 
     elif pretrained_model == 'model_weights/salgan_salicon.pt':
 
@@ -254,8 +261,9 @@ def main(dataset_name=dataset_name):
 
                 if TEMPORAL:
                     state = repackage_hidden(state)
+            print("Video {} done".format(i+STARTING_VIDEO))
 
-        elif dataset_name == "Hollywood-2":
+        elif dataset_name == "Hollywood-2" or "UCF-sports":
 
             video_dst = os.path.join(dst, video_name_list[i], '{}_predictions'.format(pretrained_model.replace(".pt", "")))
             print("Destination: {}".format(video_dst))
@@ -294,6 +302,8 @@ def main(dataset_name=dataset_name):
 
                 if TEMPORAL:
                     state = repackage_hidden(state)
+            print("Video {} done".format(i+STARTING_VIDEO))
+
         elif dataset_name == "Egomon":
 
             video_dst = os.path.join(dst, activity[i])
@@ -322,7 +332,7 @@ def main(dataset_name=dataset_name):
                     state = repackage_hidden(state)
 
 
-        print("Video {} done".format(i+STARTING_VIDEO))
+            print("Video {} done".format(i))
 
 def repackage_hidden(h):
     """Wraps hidden states in new Tensors, to detach them from their history."""

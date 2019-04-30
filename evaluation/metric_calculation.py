@@ -1,7 +1,4 @@
 from salience_metrics import AUC_Judd, AUC_shuffled, CC, NSS, SIM
-"""
-DHF1K paper: "we  employ  five  classic  met-rics,  namely  Normalized  Scanpath  Saliency  (NSS),  Sim-ilarity Metric (SIM), Linear Correlation Coefficient (CC),AUC-Judd (AUC-J), and shuffled AUC (s-AUC).""
-"""
 import cv2
 import os
 import numpy as np
@@ -24,6 +21,8 @@ SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SG_predictions"
 SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SalBCE_predictions"
 SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SalEMA30D_H_predictions"
 SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SalGANmid_H_predictions"
+SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SalEMA30A_predictions"
+SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SalEMA30Afinal_predictions"
 
 RESCALE_GTs = False
 print("Now evaluating on {}".format(SM_DIR))
@@ -80,10 +79,8 @@ def inner_worker(n, sAUC_extramap, packed, gt_path, fix_path, sm_path): #packed 
         # Avoid doing this in the future. GTs should not be manipulated.
         #print(np.max(mground_truth))
         mground_truth = cv2.resize(mground_truth, (saliency_map.shape[1], saliency_map.shape[0]), interpolation=cv2.INTER_AREA)
-        # some error seems to occur, particularly on the first 3 metrics after the resize. CC and SIM are calculated normally. Noticeably the maximum value of 255 changes for the ground truth. It makes sense that this confuses location based metrics that aim to compare fixation points (hence maximum value locations).
 
         mground_truth[mground_truth==np.max(mground_truth)]=255
-        # Rescaling turned out to cause a mess to the distribution, which results in a mess for the distribution based metrics (CC , SIM). This is evident from the fact that before rescaling the mean is close to 9 but afterwards it's close to 0. It is apparent that rescaling saliency maps down and then up again causes issues and should be avoided.
         #mground_truth = (mground_truth-np.min(mground_truth))/(np.max(mground_truth)-np.min(mground_truth))
         #mground_truth = mground_truth*255
     else:

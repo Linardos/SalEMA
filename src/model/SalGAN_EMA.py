@@ -1,6 +1,6 @@
 import torch
 from torchvision.models import vgg16
-from torch import nn
+from torch import nn, sigmoid
 #from torch.nn.functional import interpolate #Upsampling is supposedly deprecated, replace with interpolate, eventually, maybe
 from torch.nn.modules.upsampling import Upsample
 from torch.nn.functional import interpolate, dropout2d
@@ -9,7 +9,7 @@ from torch.nn.modules.conv import Conv2d
 from torch.nn.modules.activation import Sigmoid, ReLU
 
 class Upsample(nn.Module):
-    # Upsampling has been deprecated for some reason, this workaround allows us to still use the function within sequential.https://discuss.pytorch.org/t/using-nn-function-interpolate-inside-nn-sequential/23588
+    # Upsample has been deprecated, this workaround allows us to still use the function within sequential.https://discuss.pytorch.org/t/using-nn-function-interpolate-inside-nn-sequential/23588
     def __init__(self, scale_factor, mode):
         super(Upsample, self).__init__()
         self.interp = interpolate
@@ -31,7 +31,9 @@ class SalGAN_EMA(nn.Module):
         self.dropout = dropout
         self.residual = residual
         self.use_gpu = use_gpu
-        self.alpha = alpha
+        self.alpha = nn.Parameter(torch.Tensor([0.25]))
+        print("Initial alpha set to: {}".format(self.alpha))
+        #self.alpha = alpha
         self.ema_loc = ema_loc # 30 = bottleneck
         assert(alpha<=1 and alpha>=0)
 
@@ -101,7 +103,8 @@ class SalGAN_EMA(nn.Module):
         if prev_state is None:
             current_state = self.salgan[self.ema_loc](x) #Initially don't apply alpha as there is no prev state we will consistently have bad saliency maps at the start if we were to do so.
         else:
-            current_state = self.alpha*self.salgan[self.ema_loc](x)+(1-self.alpha)*prev_state
+            current_state = sigmoid(self.alpha)*self.salgan[self.ema_loc](x)+(1-sigmoid(self.alpha))*prev_state
+            #current_state = (self.alpha)*self.salgan[self.ema_loc](x)+(1-(self.alpha))*prev_state
 
         if self.residual == True:
             x = current_state+residual

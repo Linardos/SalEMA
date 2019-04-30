@@ -11,9 +11,11 @@ import torch
 from PIL import Image
 
 #===Hollywood has another folder structure
-HOLLY_DIR = "/home/linardos/Hollywood-2/testing/"
-MODEL = "SalGANmid_H"
-MODEL = "SalEMA30D_H"
+#HOLLY_DIR = "/home/linardos/Hollywood-2/testing/"
+HOLLY_DIR = "/imatge/lpanagiotis/work/UCF-sports/testing"
+HOLLY_DIR = "/home/mondestrasz/Documents/Datasets/UCF-sports/testing"
+MODEL = "SalEMA30D_HU"
+MODEL = "SalGANmid_HU"
 
 final_metric_list = []
 
@@ -64,19 +66,17 @@ def inner_worker(n, sAUC_extramap, packed, gt_path, fix_path, sm_path): #packed 
     fground_truth = cv2.imread(os.path.join(fix_path, fix),cv2.IMREAD_GRAYSCALE)
     saliency_map = cv2.imread(os.path.join(sm_path, sm),cv2.IMREAD_GRAYSCALE)
 
-
+    #print("it made it this far")
     if RESCALE_GTs:
         # Avoid doing this in the future. GTs should not be manipulated.
         #print(np.max(mground_truth))
         mground_truth = cv2.resize(mground_truth, (saliency_map.shape[1], saliency_map.shape[0]), interpolation=cv2.INTER_AREA)
-        # some error seems to occur, particularly on the first 3 metrics after the resize. CC and SIM are calculated normally. Noticeably the maximum value of 255 changes for the ground truth. It makes sense that this confuses location based metrics that aim to compare fixation points (hence maximum value locations).
 
         mground_truth[mground_truth==np.max(mground_truth)]=255
-        # Rescaling turned out to cause a mess to the distribution, which results in a mess for the distribution based metrics (CC , SIM). This is evident from the fact that before rescaling the mean is close to 9 but afterwards it's close to 0. It is apparent that rescaling saliency maps down and then up again causes issues and should be avoided.
         #mground_truth = (mground_truth-np.min(mground_truth))/(np.max(mground_truth)-np.min(mground_truth))
         #mground_truth = mground_truth*255
     else:
-        saliency_map = cv2.resize(saliency_map, (mground_truth.shape[1], mground_truth.shape[0]), interpolation=cv2.INTER_LINEAR)
+        saliency_map = cv2.resize(saliency_map, (mground_truth.shape[1], mground_truth.shape[0]), interpolation=cv2.INTER_AREA)
 
     #saliency_map_norm = normalize(saliency_map) # The functions are a bit haphazard. Some have normalization within and some do not.
 
@@ -85,6 +85,7 @@ def inner_worker(n, sAUC_extramap, packed, gt_path, fix_path, sm_path): #packed 
     return AUC_SHUF
     """
 
+    #print("or this far")
 
 
     mground_truth = cv2.resize(mground_truth, (0,0), fx=0.5, fy=0.5)
@@ -99,6 +100,7 @@ def inner_worker(n, sAUC_extramap, packed, gt_path, fix_path, sm_path): #packed 
     # Calculate metrics
     auc_j = AUC_Judd(saliency_map, fground_truth)
     Sauc = AUC_shuffled(saliency_map, fground_truth, sAUC_extramap)
+    #print("or this far?")
     Nss = NSS(saliency_map, fground_truth)
     Cc = CC(saliency_map, mground_truth)
     sim = SIM(saliency_map, mground_truth)

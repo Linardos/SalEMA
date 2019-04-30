@@ -12,24 +12,24 @@ from torch.utils import data
 from torch.autograd import Variable
 from data_loader import DHF1K_frames, Hollywood_frames
 
-dtype = torch.FloatTensor
-if torch.cuda.is_available():
-    dtype = torch.cuda.FloatTensor
+
 
 """
 Be sure to check the name of NEW_MODEL before running
 """
 dataset_name = "Hollywood-2"
+dataset_name = "UCF-sports"
+dataset_name = "DHF1K"
 frame_size = (192, 256) # original shape is (360, 640, 3)
 learning_rate = 0.0000001 # Added another 0 for hollywood
 decay_rate = 0.1
 momentum = 0.9
 weight_decay = 1e-4
-epochs = 7+3
+epochs = 7 #+3+2
 plot_every = 1
 clip_length = 10
 starting_video = 1
-number_of_videos = 600 #Reset to 600
+number_of_videos = 600 #600 #Reset to 600
 
 VAL_PERC = 0 #percentage of the given data to be used as validation on runtime. In our last experiments we validate after training so we don't use validation on runtime.
 TEMPORAL = True
@@ -39,23 +39,33 @@ DROPOUT = True
 SALGAN_WEIGHTS = 'model_weights/salgan_salicon.pt' #JuanJo's weights
 #CONV_LSTM_WEIGHTS = './SalConvLSTM.pt' #These are not relevant in this problem after all, SalGAN was trained on a range of 0-255, the ConvLSTM was trained on a 0-1 range so they are incompatible.
 ALPHA = 0.1
+LEARN_ALPHA_ONLY = False
 DOUBLE = False
 EMA_LOC = 30     # 30 is the bottleneck
 #EMA_LOC_2 = 54
-PARALLEL = True
+PROCESS = 'parallel'
 # Parameters
 params = {'batch_size': 1, # number of videos / batch, I need to implement padding if I want to do more than 1, but with DataParallel it's quite messy
           'num_workers': 4,
           'pin_memory': True}
 
-NEW_MODEL = 'SalGANmid_H.pt'
-NEW_MODEL = 'SalEMA{}D_H.pt'.format(EMA_LOC)
+NEW_MODEL = 'SalEMA{}D_HU.pt'.format(EMA_LOC)
+NEW_MODEL = 'SalGANmid_HU.pt'
+NEW_MODEL = 'SalEMA{}A.pt'.format(EMA_LOC)
+NEW_MODEL = 'SalEMA{}Afinal.pt'.format(EMA_LOC)
 #NEW_MODEL = 'SalBCE.pt'
 #NEW_MODEL = 'SalEMA{}&{}.pt'.format(EMA_LOC, EMA_LOC_2)
 #pretrained_model = 'SalEMA{}.pt'.format(EMA_LOC)
-pretrained_model = 'SalGANmid.pt'
 pretrained_model = 'rawSalEMA{}D.pt'.format(EMA_LOC)
+pretrained_model = 'SalEMA{}D_H.pt'.format(EMA_LOC)
+pretrained_model = 'SalGANmid_H.pt'
+pretrained_model = None
 #NEW_MODEL = 'SalGANmid.pt'
+
+dtype = torch.FloatTensor
+if PROCESS == 'gpu' or PROCESS == 'parallel':
+    assert(torch.cuda.is_available())
+    dtype = torch.cuda.FloatTensor
 
 def main(params = params):
 
@@ -86,10 +96,10 @@ def main(params = params):
             print("Size of validation set is {}".format(len(val_set)))
             val_loader = data.DataLoader(val_set, **params)
 
-    elif dataset_name == "Hollywood-2":
+    elif dataset_name == "Hollywood-2" or dataset_name == "UCF-sports":
         print("Commencing training on dataset {}".format(dataset_name))
         train_set = Hollywood_frames(
-            root_path = "/imatge/lpanagiotis/work/Hollywood-2/training",
+            root_path = "/imatge/lpanagiotis/work/{}/training".format(dataset_name),
             #root_path = "/home/linardosHollywood-2/training",
             clip_length = clip_length,
             resolution = frame_size,
@@ -140,7 +150,13 @@ def main(params = params):
             optimizer = torch.optim.Adam([{'params': model.Gates.parameters()}], learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=weight_decay)
 
     else:
-        optimizer = torch.optim.Adam(model.parameters(), learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=weight_decay)
+        #optimizer = torch.optim.Adam(model.parameters(), learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=weight_decay)
+        optimizer = torch.optim.Adam([
+            {'params':model.salgan.parameters() , 'lr': learning_rate, 'weight_decay':weight_decay},
+            {'params':model.alpha, 'lr': 0.1}])
+        if LEARN_ALPHA_ONLY:
+            optimizer = torch.optim.Adam([{'params':[model.alpha]}], 0.1)
+
 
 
     if pretrained_model == None:
@@ -158,16 +174,18 @@ def main(params = params):
 
         # Load an entire pretrained model
         checkpoint = load_weights(model, pretrained_model)
-        model.load_state_dict(checkpoint, strict=True)
+        model.load_state_dict(checkpoint, strict=False)
         start_epoch = torch.load(pretrained_model, map_location='cpu')['epoch']
         #optimizer.load_state_dict(torch.load(pretrained_model, map_location='cpu')['optimizer'])
 
         print("Model loaded, commencing training from epoch {}".format(start_epoch))
 
-    if PARALLEL:
+    if PROCESS == 'parallel':
         model = nn.DataParallel(model).cuda()
-    else:
+    elif PROCESS == 'gpu':
         model = model.cuda()
+    else:
+        pass
     cudnn.benchmark = True #https://discuss.pytorch.org/t/what-does-torch-backends-cudnn-benchmark-do/5936
     criterion = criterion.cuda()
     # =================================================
@@ -180,6 +198,9 @@ def main(params = params):
     print("Training started at : {}".format(starting_time))
 
     n_iter = 0
+    #if "EMA" in NEW_MODEL:
+    #    print("Alpha value started at: {}".format(model.alpha))
+
     for epoch in range(start_epoch, epochs+1):
 
         try:
@@ -205,10 +226,13 @@ def main(params = params):
                 'optimizer' : optimizer.state_dict()
                 }, NEW_MODEL)
 
-            if PARALLEL:
+            if PROCESS == 'parallel':
                 model = nn.DataParallel(model).cuda()
-            else:
+            elif PROCESS == 'gpu':
                 model = model.cuda()
+            else:
+                pass
+
             """
             else:
 
@@ -223,7 +247,8 @@ def main(params = params):
             break
 
     print("Training of {} started at {} and finished at : {} \n Now saving..".format(NEW_MODEL, starting_time, datetime.datetime.now().replace(microsecond=0)))
-
+    #if "EMA" in NEW_MODEL:
+    #    print("Alpha value tuned to: {}".format(model.alpha))
     # ===================== #
     # ======  Saving ====== #
 
@@ -291,7 +316,7 @@ def train(train_loader, model, criterion, optimizer, epoch, n_iter):
     model.train()
 
     if TEMPORAL and FREEZE:
-        if PARALLEL:
+        if PROCESS == 'parallel':
             # Unfreeze layers depending on epoch number
             optimizer = model.module.thaw(epoch, optimizer) #When you wrap a model with DataParallel, the model.module can be seen as the model before it’s wrapped.
 
