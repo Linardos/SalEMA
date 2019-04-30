@@ -36,7 +36,7 @@ class DHF1K_frames(data.Dataset):
             # a list of lists
             self.video_list.append(frame_files_sorted)
 
-            if i<701:
+            if gt_path != None:
               gt_files = os.listdir(os.path.join(self.gt_path,str(i)))
               gt_files_sorted = sorted(gt_files, key = lambda x: int(x.split(".")[0]) )
               pack = zip(gt_files_sorted, frame_files_sorted)
@@ -78,7 +78,7 @@ class DHF1K_frames(data.Dataset):
         'Generates one sample of data'
         # Select sample video (frame list), in our case saliency map list
         frames = self.video_list[video_index]
-        if self.starting_video< 701:
+        if self.gt_path != None:
           gts = self.gts_list[video_index]
 
         # Due to the split in train and validation we need to add this number to the video_index to find the correct video (to match the files in the path with the video list the training part uses)
@@ -103,7 +103,7 @@ class DHF1K_frames(data.Dataset):
 
           data.append(X.unsqueeze(0))
           # Load and preprocess ground truth (saliency maps)
-          if self.starting_video < 701:
+          if self.gt_path != None:
 
             path_to_gt = os.path.join(self.gt_path, str(true_index), gts[frame])
 
@@ -119,7 +119,7 @@ class DHF1K_frames(data.Dataset):
 
             data_tensor = torch.cat(data,0)
             data = []
-            if self.starting_video < 701:
+            if self.gt_path != None:
               gt_tensor = torch.cat(gt,0)
               gt = []
               packed.append((data_tensor,gt_tensor)) # pack a list of data with the corresponding list of ground truths

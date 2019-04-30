@@ -27,11 +27,7 @@ dataset_name = "Hollywood-2"
 dataset_name = "DHF1K"
 """
 CLIP_LENGTH = 10
-START = 601
-END = 700 # DHF1K offers 700 labeled videos, the other 300 are held back by the authors
 EMA_LOC = 30 # 30 is the bottleneck
-#EMA_LOC_2 = 54
-ALPHA = 0.1
 pretrained_model = './SalEMA{}Afinal.pt'.format(EMA_LOC)
 #pretrained_model = 'SalEMA{}&{}.pt'.format(EMA_LOC,EMA_LOC_2)
 frame_size = (192, 256)
@@ -47,10 +43,13 @@ params = {'batch_size': 1,
 
 def main(args):
 
-    if args.dataset == "DHF1K" or args.dataset == "other":
-        dst = os.path.join(args.dst, "/{}_predictions".format(pretrained_model.replace(".pt", ""))) #DHF1K
-    elif args.dataset == "Hollywood-2" or args.dataset == "UCF-sports":
+    if args.dataset == "DHF1K" or "other":
+        dst = os.path.join(args.dst, "{}_predictions".format(pretrained_model.replace(".pt", "")))
+    elif args.dataset == "Hollywood-2" or "UCF-sports":
         dst = os.path.join(args.dst, "/{}/testing".format(args.dataset)) #Hollywood or UCF-sports
+    else:
+        print("Dataset not recognized. If you want to input your own dataset use input '-dataset=other' and specify the path '-src /path/to/mydataset'.")
+    print("Output directory {}".format(dst))
 
     # =================================================
     # ================ Data Loading ===================
@@ -61,22 +60,14 @@ def main(args):
         #print(args.end)
         print("Commencing inference for dataset {}".format(args.dataset))
         dataset = DHF1K_frames(
-            frames_path = frames_path,
-            gt_path = gt_path,
+            frames_path = args.src,
+            gt_path = None,
             starting_video = int(args.start),
             number_of_videos = int(args.end),
             clip_length = CLIP_LENGTH,
             split = None,
             resolution = frame_size)
              #add a parameter node = training or validation
-
-    elif args.dataset == "Egomon":
-        print("Commencing inference for dataset {}".format(args.dataset))
-        dataset = Ego_frames(
-            frames_path = frames_path,
-            clip_length = CLIP_LENGTH,
-            resolution = frame_size)
-        activity = dataset.match_i_to_act
 
     elif args.dataset == "Hollywood-2" or "UCF-sports":
         print("Commencing inference for dataset {}".format(args.dataset))
@@ -116,9 +107,9 @@ def main(args):
 
     elif "EMA" in args.pretrained_model:
         if args.double_ema:
-            model = SalEMA.SalEMA2(alpha=ALPHA, ema_loc_1=EMA_LOC, ema_loc_2=EMA_LOC_2)
+            model = SalEMA.SalEMA2(alpha=args.alpha, ema_loc_1=EMA_LOC, ema_loc_2=EMA_LOC_2)
         else:
-            model = SalEMA.SalEMA(alpha=ALPHA, residual=args.residual, dropout = args.dropout, ema_loc=EMA_LOC)
+            model = SalEMA.SalEMA(alpha=args.alpha, residual=args.residual, dropout = args.dropout, ema_loc=EMA_LOC)
 
         load_model(args.pretrained_model, model)
         print("Pre-trained model {} loaded succesfully".format(args.pretrained_model))
@@ -135,7 +126,7 @@ def main(args):
             TEMPORAL = False
             print("Pre-trained model SalBCE loaded succesfully.")
         else:
-            model = SalEMA.SalEMA(alpha=ALPHA, ema_loc=EMA_LOC)
+            model = SalEMA.SalEMA(alpha=args.alpha, ema_loc=EMA_LOC)
             TEMPORAL = True
             print("Pre-trained model SalBCE loaded succesfully. EMA inference will commence soon.")
 
@@ -178,7 +169,7 @@ def main(args):
 
         if args.dataset == "DHF1K":
 
-            video_dst = os.path.join(dst, str(args.start+i).zfill(4))
+            video_dst = os.path.join(dst, str(int(args.start)+i).zfill(4))
             if not os.path.exists(video_dst):
                 os.mkdir(video_dst)
 
@@ -258,36 +249,6 @@ def main(args):
                 if TEMPORAL:
                     state = repackage_hidden(state)
             print("Video {} done".format(i+int(args.start)))
-
-        elif args.dataset == "Egomon":
-
-            video_dst = os.path.join(dst, activity[i])
-            if not os.path.exists(video_dst):
-                os.mkdir(video_dst)
-
-            for j, (frame_names, clip) in enumerate(video):
-                clip = Variable(clip.type(dtype).transpose(0,1), requires_grad=False)
-                for idx in range(clip.size()[0]):
-                    # Compute output
-
-                    if TEMPORAL:
-                        state, saliency_map = model.forward(input_ = clip[idx], prev_state = state)
-                    else:
-                        saliency_map = model.forward(input_ = clip[idx])
-
-                    count+=1
-                    saliency_map = saliency_map.squeeze(0)
-
-                    post_process_saliency_map = (saliency_map-torch.min(saliency_map))/(torch.max(saliency_map)-torch.min(saliency_map))
-                    utils.save_image(post_process_saliency_map, os.path.join(video_dst, frame_names[idx][0]))
-
-
-
-                if TEMPORAL:
-                    state = repackage_hidden(state)
-
-
-            print("Video {} done".format(i))
 
 def load_model(pretrained_model, new_model):
 
