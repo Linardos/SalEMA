@@ -78,12 +78,12 @@ class SalGAN(nn.Module):
         return self.salgan(input_)
 
 
-#Includes two variations: SalGANplus and SalCLSTM30, which refer to adding the convLSTM layer in the end or in the middle.
+#Includes two variations: SalCLSTM56 and SalCLSTM30, which refer to adding the convLSTM layer in the end or in the middle.
 
-class SalGANplus(nn.Module):
+class SalCLSTM56(nn.Module):
 
     def __init__(self, seed_init, freeze = True, use_gpu=True):
-        super(SalGANplus,self).__init__()
+        super(SalCLSTM56,self).__init__()
 
         self.use_gpu = use_gpu
 

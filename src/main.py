@@ -2,7 +2,7 @@ import cv2
 import os
 import datetime
 import numpy as np
-from model import SalGANmore, SalGAN_EMA
+from model import SalGANmore, SalEMA
 import pickle
 import torch
 from torchvision import transforms, utils
@@ -60,7 +60,7 @@ pretrained_model = 'rawSalEMA{}D.pt'.format(EMA_LOC)
 pretrained_model = 'SalEMA{}D_H.pt'.format(EMA_LOC)
 pretrained_model = 'SalGANmid_H.pt'
 pretrained_model = None
-#NEW_MODEL = 'SalGANmid.pt'
+#NEW_MODEL = 'SalCLSTM30.pt'
 
 dtype = torch.FloatTensor
 if PROCESS == 'gpu' or PROCESS == 'parallel':
@@ -115,21 +115,21 @@ def main(params = params):
 
     # The seed pertains to initializing the weights with a normal distribution
     # Using brute force for 100 seeds I found the number 65 to provide a good starting point (one that looks close to a saliency map predicted by the original SalGAN)
-    if NEW_MODEL == 'SalGANplus.pt':
+    if 'CLSTM56' in NEW_MODEL:
         model = SalGANmore.SalGANplus(seed_init=65, freeze=FREEZE)
         print("Initialized {}".format(NEW_MODEL))
-    elif 'SalGANmid' in NEW_MODEL:
-        model = SalGANmore.SalGANmid(seed_init=65, residual=RESIDUAL, freeze=FREEZE)
+    elif 'CLSTM30' in NEW_MODEL:
+        model = SalGANmore.SalCLSTM30(seed_init=65, residual=RESIDUAL, freeze=FREEZE)
         print("Initialized {}".format(NEW_MODEL))
     elif NEW_MODEL == 'SalBCE.pt':
         model = SalGANmore.SalGAN()
         print("Initialized {}".format(NEW_MODEL))
     elif 'EMA' in NEW_MODEL:
         if DOUBLE:
-            model = SalGAN_EMA.SalGAN_EMA2(alpha=ALPHA, ema_loc_1=EMA_LOC, ema_loc_2=EMA_LOC_2)
+            model = SalEMA.SalEMA2(alpha=ALPHA, ema_loc_1=EMA_LOC, ema_loc_2=EMA_LOC_2)
             print("Initialized {}".format(NEW_MODEL))
         else:
-            model = SalGAN_EMA.SalGAN_EMA(alpha=ALPHA, residual=RESIDUAL, dropout= DROPOUT, ema_loc=EMA_LOC)
+            model = SalEMA.SalEMA(alpha=ALPHA, residual=RESIDUAL, dropout= DROPOUT, ema_loc=EMA_LOC)
             print("Initialized {} with residual set to {} and dropout set to {}".format(NEW_MODEL, RESIDUAL, DROPOUT))
     else:
         print("Your model was not recognized, check the name of the model and try again.")
@@ -146,7 +146,7 @@ def main(params = params):
         if NEW_MODEL == 'SalGANplus.pt':
             optimizer = torch.optim.Adam([{'params': model.Gates.parameters()},{'params': model.final_convs.parameters()}], learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=weight_decay)
 
-        elif 'SalGANmid' in NEW_MODEL:
+        elif 'SalCLSTM30' in NEW_MODEL:
             optimizer = torch.optim.Adam([{'params': model.Gates.parameters()}], learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=weight_decay)
 
     else:

@@ -117,7 +117,7 @@ class SalEMA(nn.Module):
         return current_state, x #x is a saliency map at this point
 
 
-class SalGAN_EMA2(nn.Module):
+class SalEMA2(nn.Module):
     """
     In this model, we pick two Convolutional layers from decoder and encoder  and apply EMA
     The smaller the alpha, the less each newly added frame will impact the outcome. This way the temporal information becomes most relevant.
