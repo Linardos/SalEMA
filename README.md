@@ -1,17 +1,9 @@
 # SalEMA
 
-This work is an improvement on [VideoSalGAN](https://github.com/imatge-upc/saliency-2018-videosalgan).
-After setting a [baseline](https://github.com/juanjo3ns/SalBCE) we applied our temporal augmentation, which essentially was choosing a layer to act as the temporal state or add a new one. We experimented with two types of modifications: an exponential moving average of the temporal state and the addition of a ConvLSTM layer to act as the temporal state. We trained our architecture on [DHF1K](https://github.com/wenguanwang/DHF1K). Below is a  schematic representing one example of our models, where the temporal state was added at the bottleneck.
+SalEMA is a video saliency prediction network. It utilizes a moving average of convolutional states to produce state of the art results. The architecture has been trained on [DHF1K](https://github.com/wenguanwang/DHF1K). 
 
-Evaluation on DHF1K showed that our augmentations improve performance over the baseline. Note that in all EMA models, the alpha value is fixed at 0.1.
-
-Qualitative Results on video #664 (EMA shown to improve NSS a lot in this particular sample)
-
+Qualitative results:
 ![QResults](https://raw.githubusercontent.com/Linardos/SalEMA/gh-pages/QResultsEMA.png)
-
-Qualitative Results on video #601 (EMA shown to do worse on NSS in this particular sample)
-
-![QResults](https://raw.githubusercontent.com/Linardos/SalEMA/gh-pages/QResultsCLSTM.png)
 
 
 ## Model
