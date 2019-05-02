@@ -1,7 +1,5 @@
 # SalEMA
 
-## What SalEMA is
-
 SalEMA is a video saliency prediction network. It utilizes a moving average of convolutional states to produce state of the art results. The architecture has been trained on DHF1K.
 
 ## Model
