@@ -1,15 +1,7 @@
 # SalEMA
 
 This work is an improvement on [VideoSalGAN](https://github.com/imatge-upc/saliency-2018-videosalgan).
-In both of these works, the goal is to explore how a model trained on static images for the task of saliency prediction can be extended to do the same thing on videos. The video saliency dataset used for our experiments was the DHF1K.
-
-The original architecture ([SalGAN](https://imatge-upc.github.io/saliency-salgan-2017/)) is trained on SALICON and optimized by a combination of two cost functions, binary cross entropy and adversarial loss. 
-![image](https://raw.githubusercontent.com/imatge-upc/saliency-salgan-2017/junting/figs/fullarchitecture.jpg?token=AFOjyaH8cuBFWpldWWzo_TKVB-zekfxrks5Yc4NQwA%3D%3D)
-
-The saliency generator consists of an encoder and a decoder part. Porting to PyTorch showed an unexplained loss in performance. For this reason, before fine-tuning on a dynamic dataset, we needed to set a new baseline of our ported pytorch model. In order to do this, we tried a few experiments and the best performance was achieved with 27 epochs over SALICON with data augmentation techniques applied. 
-
 After setting a [baseline](https://github.com/juanjo3ns/SalBCE) we applied our temporal augmentation, which essentially was choosing a layer to act as the temporal state or add a new one. We experimented with two types of modifications: an exponential moving average of the temporal state and the addition of a ConvLSTM layer to act as the temporal state. We trained our architecture on [DHF1K](https://github.com/wenguanwang/DHF1K). Below is a  schematic representing one example of our models, where the temporal state was added at the bottleneck.
-![TemporalEDmodel](https://raw.githubusercontent.com/Linardos/SalEMA/gh-pages/TemporalEDmodel.jpg)
 
 Evaluation on DHF1K showed that our augmentations improve performance over the baseline. Note that in all EMA models, the alpha value is fixed at 0.1.
 
@@ -24,7 +16,9 @@ Qualitative Results on video #601 (EMA shown to do worse on NSS in this particul
 
 ## Model
 
-Download our best configuration of the SalEMA model [here](https://imatge.upc.edu/web/sites/default/files/projects/saliency/public/VideoSalGAN-II/SalEMA30.pt)
+![TemporalEDmodel](https://raw.githubusercontent.com/Linardos/SalEMA/gh-pages/TemporalEDmodel.jpg)
+
+Download our best configuration of the SalEMA model [here](https://imatge.upc.edu/web/sites/default/files/projects/saliency/public/VideoSalGAN-II/SalEMA30.pt) (364MB)
 
 ## Installation
 
