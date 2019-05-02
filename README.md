@@ -5,6 +5,7 @@ SalEMA is a video saliency prediction network. It utilizes a moving average of c
 Qualitative results:
 ![QResults](https://raw.githubusercontent.com/Linardos/SalEMA/gh-pages/QResultsEMA.png)
 
+You may download a video (DHF1K sample) generated from images with overlayed maps produced by SalEMA [here](https://github.com/Linardos/SalEMA/blob/gh-pages/videos/664salema.avi?raw=true)
 
 ## Model
 
