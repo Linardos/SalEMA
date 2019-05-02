@@ -11,11 +11,11 @@ import torch
 from PIL import Image
 
 #===Hollywood has another folder structure
-#HOLLY_DIR = "/home/linardos/Hollywood-2/testing/"
 HOLLY_DIR = "/imatge/lpanagiotis/work/UCF-sports/testing"
 HOLLY_DIR = "/home/mondestrasz/Documents/Datasets/UCF-sports/testing"
-MODEL = "SalEMA30D_HU"
+HOLLY_DIR = "/home/linardos/datasets/Hollywood-2/testing/"
 MODEL = "SalGANmid_HU"
+MODEL = "SalEMA30Afinal_H"
 
 final_metric_list = []
 
