@@ -30,9 +30,9 @@ pip3 install torch torchvision
 
 ## Inference
 
-You may use our pretrained model for inference following the guidelines
+You may use our pretrained model for inference on either of the 3 datasets: DHF1K [link](https://drive.google.com/file/d/1vfRKJloNSIczYEOVjB4zMK8r0k4VJuWk/view), Hollywood-2 [link](https://drive.google.com/file/d/1vfRKJloNSIczYEOVjB4zMK8r0k4VJuWk/view), UCF-sports [link](https://drive.google.com/drive/folders/1sW0tf9RQMO4RR7SyKhU8Kmbm4jwkFGpQ):
 
-An example of how to perform inference on DHF1K validation set:
+To perform inference on DHF1K validation set:
 
 ```python inference.py -dataset=DHF1K -pt_model=SalEMA30.pt -start=600 -end=700 -dst=/path/to/output -src=/path/to/DHF1K/frames```
 
