@@ -2,16 +2,16 @@
 
 ## What SalEMA is
 
-This work is an improvement on [VideoSalGAN](https://github.com/imatge-upc/saliency-2018-videosalgan).
-In both of these works, the goal is to explore how a model trained on static images for the task of saliency prediction can be extended to do the same thing on videos. The video saliency dataset used for our experiments was the DHF1K.
+SalEMA is a video saliency prediction network. It utilizes a moving average of convolutional states to produce state of the art results. The architecture has been trained on DHF1K.
 
-![TemporalEDmodel](https://raw.githubusercontent.com/Linardos/SalEMA/gh-pages/TemporalEDmodel.jpg)
 
 ![QResults](https://raw.githubusercontent.com/Linardos/SalEMA/gh-pages/QResultsEMA.png)
 
 ## Model
 
-Download our best configuration of the SalEMA model [here](https://imatge.upc.edu/web/sites/default/files/projects/saliency/public/VideoSalGAN-II/SalEMA30.pt)
+![TemporalEDmodel](https://raw.githubusercontent.com/Linardos/SalEMA/gh-pages/TemporalEDmodel.jpg)
+
+Download our best configuration of the SalEMA model [here (364MB)](https://imatge.upc.edu/web/sites/default/files/projects/saliency/public/VideoSalGAN-II/SalEMA30.pt)
 
 ## Installation
 
@@ -21,12 +21,10 @@ Download our best configuration of the SalEMA model [here](https://imatge.upc.ed
 git clone https://github.com/Linardos/SalEMA
 ```
 
-- Install requirements ```pip install -r requirements.txt``` 
-- Install [PyTorch 1.0](http://pytorch.org/):
-
+- Install requirements 
 ```shell
-pip3 install torch torchvision
-```
+pip install -r requirements.txt
+``` 
 
 ## Inference
 
