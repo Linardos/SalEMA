@@ -28,7 +28,7 @@ dataset_name = "DHF1K"
 """
 CLIP_LENGTH = 10
 EMA_LOC = 30 # 30 is the bottleneck
-pt_model = './SalEMA{}Afinal.pt'.format(EMA_LOC)
+#pt_model = './SalEMA{}Afinal.pt'.format(EMA_LOC)
 #pt_model = 'SalEMA{}&{}.pt'.format(EMA_LOC,EMA_LOC_2)
 frame_size = (192, 256)
 # Destination for predictions:
@@ -43,10 +43,10 @@ params = {'batch_size': 1,
 
 def main(args):
 
-    if args.dataset == "DHF1K" or "other":
-        dst = os.path.join(args.dst, "{}_predictions".format(pt_model.replace(".pt", "")))
-    elif args.dataset == "Hollywood-2" or "UCF-sports":
-        dst = os.path.join(args.dst, "/{}/testing".format(args.dataset)) #Hollywood or UCF-sports
+    if args.dataset == "DHF1K" or args.dataset == "other":
+        dst = os.path.join(args.dst, "{}_predictions".format(args.pt_model.replace(".pt", "")))
+    elif args.dataset == "Hollywood-2" or args.dataset == "UCF-sports":
+        dst = os.path.join(args.dst, "{}/testing".format(args.dataset)) #Hollywood or UCF-sports
     else:
         print("Dataset not recognized. If you want to input your own dataset use input '-dataset=other' and specify the path '-src /path/to/mydataset'.")
     print("Output directory {}".format(dst))
@@ -69,10 +69,10 @@ def main(args):
             resolution = frame_size)
              #add a parameter node = training or validation
 
-    elif args.dataset == "Hollywood-2" or "UCF-sports":
+    elif args.dataset == "Hollywood-2" or args.dataset == "UCF-sports":
         print("Commencing inference for dataset {}".format(args.dataset))
         dataset = Hollywood_frames(
-            root_path = dst,
+            root_path = args.src,
             clip_length = CLIP_LENGTH,
             resolution = frame_size)
         video_name_list = dataset.video_names() #match an index to the sample video name

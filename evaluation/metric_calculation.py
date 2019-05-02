@@ -23,6 +23,7 @@ SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SalEMA30D_H_predictions"
 SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SalGANmid_H_predictions"
 SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SalEMA30A_predictions"
 SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SalEMA30Afinal_predictions"
+SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SalEMA30Afinal_H_predictions"
 
 RESCALE_GTs = False
 print("Now evaluating on {}".format(SM_DIR))
