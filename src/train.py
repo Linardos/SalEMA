@@ -2,7 +2,8 @@ import cv2
 import os
 import datetime
 import numpy as np
-from model import SalGANmore, SalEMA
+from model import SalCLSTM, SalEMA
+from args import get_training_parser
 import pickle
 import torch
 from torchvision import transforms, utils
@@ -15,92 +16,86 @@ from data_loader import DHF1K_frames, Hollywood_frames
 
 
 """
-Be sure to check the name of NEW_MODEL before running
+Be sure to check the name of args.new_model before running
 """
 dataset_name = "UCF-sports"
 dataset_name = "DHF1K"
 dataset_name = "Hollywood-2"
 frame_size = (192, 256) # original shape is (360, 640, 3)
-learning_rate = 0.0000001 # Added another 0 for hollywood
+#learning_rate = 0.0000001 # Added another 0 for hollywood
 decay_rate = 0.1
 momentum = 0.9
 weight_decay = 1e-4
-epochs = 7+1 #+3+2
+#epochs = 7+1 #+3+2
 plot_every = 1
 clip_length = 10
 starting_video = 1
 number_of_videos = 600 #600 #Reset to 600
 
-VAL_PERC = 0 #percentage of the given data to be used as validation on runtime. In our last experiments we validate after training so we don't use validation on runtime.
-TEMPORAL = True
-FREEZE = False
-RESIDUAL = False
-DROPOUT = True
+temporal = True
+#RESIDUAL = False
+#args.dropout = True
 SALGAN_WEIGHTS = 'model_weights/salgan_salicon.pt' #JuanJo's weights
 #CONV_LSTM_WEIGHTS = './SalConvLSTM.pt' #These are not relevant in this problem after all, SalGAN was trained on a range of 0-255, the ConvLSTM was trained on a 0-1 range so they are incompatible.
-ALPHA = 0.1
 LEARN_ALPHA_ONLY = False
-DOUBLE = False
-EMA_LOC = 30     # 30 is the bottleneck
 #EMA_LOC_2 = 54
-PROCESS = 'parallel'
+#PROCESS = 'parallel'
 # Parameters
 params = {'batch_size': 1, # number of videos / batch, I need to implement padding if I want to do more than 1, but with DataParallel it's quite messy
           'num_workers': 4,
           'pin_memory': True}
 
-NEW_MODEL = 'SalEMA{}D_HU.pt'.format(EMA_LOC)
-NEW_MODEL = 'SalGANmid_HU.pt'
-NEW_MODEL = 'SalEMA{}A.pt'.format(EMA_LOC)
-NEW_MODEL = 'SalEMA{}Afinal_H.pt'.format(EMA_LOC)
-#NEW_MODEL = 'SalBCE.pt'
-#NEW_MODEL = 'SalEMA{}&{}.pt'.format(EMA_LOC, EMA_LOC_2)
-#pretrained_model = 'SalEMA{}.pt'.format(EMA_LOC)
-pretrained_model = 'rawSalEMA{}D.pt'.format(EMA_LOC)
-pretrained_model = 'SalEMA{}D_H.pt'.format(EMA_LOC)
-pretrained_model = 'SalGANmid_H.pt'
-pretrained_model = None
-pretrained_model = 'SalEMA{}Afinal.pt'.format(EMA_LOC)
-#NEW_MODEL = 'SalCLSTM30.pt'
+#args.new_model = 'SalEMA{}&{}.pt'.format(EMA_LOC, EMA_LOC_2)
+#args.pt_model = 'SalEMA{}.pt'.format(EMA_LOC)
+#args.pt_model = 'rawSalEMA{}D.pt'.format(EMA_LOC)
+#args.pt_model = 'SalEMA{}D_H.pt'.format(EMA_LOC)
+#args.pt_model = 'SalGANmid_H.pt'
+#args.pt_model = None
+#args.pt_model = 'SalEMA{}Afinal.pt'.format(EMA_LOC)
+#args.new_model = 'SalCLSTM30.pt'
 
-dtype = torch.FloatTensor
-if PROCESS == 'gpu' or PROCESS == 'parallel':
-    assert(torch.cuda.is_available())
-    dtype = torch.cuda.FloatTensor
+# dtype = torch.FloatTensor
+# if PROCESS == 'gpu' or PROCESS == 'parallel':
+#     assert(torch.cuda.is_available())
+#     dtype = torch.cuda.FloatTensor
 
-def main(params = params):
+def main(args, params = params):
 
     # =================================================
     # ================ Data Loading ===================
 
     #Expect Error if either validation size or train size is 1
-    if dataset_name == "DHF1K":
-        print("Commencing training on dataset {}".format(dataset_name))
+    if args.dataset == "DHF1K" or args.dataset == "other":
+        print("Commencing training on dataset {}".format(args.dataset))
         train_set = DHF1K_frames(
-            number_of_videos = number_of_videos,
-            starting_video = starting_video,
+            root_path = args.src,
+            load_gt = True,
+            number_of_videos = int(args.end),
+            starting_video = int(args.start),
             clip_length = clip_length,
             resolution = frame_size,
-            val_perc = VAL_PERC,
+            val_perc = args.val_perc,
             split = "train")
         print("Size of train set is {}".format(len(train_set)))
         train_loader = data.DataLoader(train_set, **params)
 
-        if VAL_PERC > 0:
+        if args.val_perc > 0:
             val_set = DHF1K_frames(
-                number_of_videos = number_of_videos,
-                starting_video = starting_video,
+                root_path = args.src,
+                load_gt = True,
+                number_of_videos = int(args.end),
+                starting_video = int(args.start),
                 clip_length = clip_length,
                 resolution = frame_size,
-                val_perc = VAL_PERC,
+                val_perc = args.val_perc,
                 split = "validation")
             print("Size of validation set is {}".format(len(val_set)))
             val_loader = data.DataLoader(val_set, **params)
 
-    elif dataset_name == "Hollywood-2" or dataset_name == "UCF-sports":
-        print("Commencing training on dataset {}".format(dataset_name))
+    elif args.dataset == "Hollywood-2" or args.dataset == "UCF-sports":
+        print("Commencing training on dataset {}".format(args.dataset))
         train_set = Hollywood_frames(
-            root_path = "/imatge/lpanagiotis/work/{}/training".format(dataset_name),
+            root_path = "/imatge/lpanagiotis/work/{}/training".format(args.dataset),
             #root_path = "/home/linardosHollywood-2/training",
             clip_length = clip_length,
             resolution = frame_size,
@@ -116,51 +111,53 @@ def main(params = params):
 
     # The seed pertains to initializing the weights with a normal distribution
     # Using brute force for 100 seeds I found the number 65 to provide a good starting point (one that looks close to a saliency map predicted by the original SalGAN)
-    if 'CLSTM56' in NEW_MODEL:
-        model = SalGANmore.SalGANplus(seed_init=65, freeze=FREEZE)
-        print("Initialized {}".format(NEW_MODEL))
-    elif 'CLSTM30' in NEW_MODEL:
-        model = SalGANmore.SalCLSTM30(seed_init=65, residual=RESIDUAL, freeze=FREEZE)
-        print("Initialized {}".format(NEW_MODEL))
-    elif NEW_MODEL == 'SalBCE.pt':
+    temporal = True
+    if 'CLSTM56' in args.new_model:
+        model = SalGANmore.SalGANplus(seed_init=65, freeze=args.thaw)
+        print("Initialized {}".format(args.new_model))
+    elif 'CLSTM30' in args.new_model:
+        model = SalGANmore.SalCLSTM30(seed_init=65, residual=args.residual, freeze=args.thaw)
+        print("Initialized {}".format(args.new_model))
+    elif 'SalBCE' in args.new_model:
         model = SalGANmore.SalGAN()
-        print("Initialized {}".format(NEW_MODEL))
-    elif 'EMA' in NEW_MODEL:
-        if DOUBLE:
-            model = SalEMA.SalEMA2(alpha=ALPHA, ema_loc_1=EMA_LOC, ema_loc_2=EMA_LOC_2)
-            print("Initialized {}".format(NEW_MODEL))
+        print("Initialized {}".format(args.new_model))
+        temporal = False
+    elif 'EMA' in args.new_model:
+        if args.double_ema != False:
+            model = SalEMA.SalEMA2(alpha=0.3, ema_loc_1=args.ema_loc, ema_loc_2=args.double_ema)
+            print("Initialized {}".format(args.new_model))
         else:
-            model = SalEMA.SalEMA(alpha=ALPHA, residual=RESIDUAL, dropout= DROPOUT, ema_loc=EMA_LOC)
-            print("Initialized {} with residual set to {} and dropout set to {}".format(NEW_MODEL, RESIDUAL, DROPOUT))
+            model = SalEMA.SalEMA(alpha=None, residual=args.residual, dropout= args.dropout, ema_loc=args.ema_loc)
+            print("Initialized {} with residual set to {} and dropout set to {}".format(args.new_model, args.residual, args.dropout))
     else:
         print("Your model was not recognized, check the name of the model and try again.")
         exit()
     #criterion = nn.BCEWithLogitsLoss() # This loss combines a Sigmoid layer and the BCELoss in one single class
     criterion = nn.BCELoss()
-    #optimizer = torch.optim.SGD(model.parameters(), learning_rate, momentum=momentum, weight_decay=weight_decay)
-    #optimizer = torch.optim.RMSprop(model.parameters(), learning_rate, alpha=0.99, eps=1e-08, momentum=momentum, weight_decay=weight_decay)
+    #optimizer = torch.optim.SGD(model.parameters(), args.lr, momentum=momentum, weight_decay=weight_decay)
+    #optimizer = torch.optim.RMSprop(model.parameters(), args.lr, alpha=0.99, eps=1e-08, momentum=momentum, weight_decay=weight_decay)
     #start
 
-    if FREEZE:
+    if args.thaw:
         # Load only the unfrozen part to the optimizer
 
-        if NEW_MODEL == 'SalGANplus.pt':
-            optimizer = torch.optim.Adam([{'params': model.Gates.parameters()},{'params': model.final_convs.parameters()}], learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=weight_decay)
+        if args.new_model == 'SalGANplus.pt':
+            optimizer = torch.optim.Adam([{'params': model.Gates.parameters()},{'params': model.final_convs.parameters()}], args.lr, betas=(0.9, 0.999), eps=1e-08, weight_decay=weight_decay)
 
-        elif 'SalCLSTM30' in NEW_MODEL:
-            optimizer = torch.optim.Adam([{'params': model.Gates.parameters()}], learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=weight_decay)
+        elif 'SalCLSTM30' in args.new_model:
+            optimizer = torch.optim.Adam([{'params': model.Gates.parameters()}], args.lr, betas=(0.9, 0.999), eps=1e-08, weight_decay=weight_decay)
 
     else:
-        #optimizer = torch.optim.Adam(model.parameters(), learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=weight_decay)
+        #optimizer = torch.optim.Adam(model.parameters(), args.lr, betas=(0.9, 0.999), eps=1e-08, weight_decay=weight_decay)
         optimizer = torch.optim.Adam([
-            {'params':model.salgan.parameters() , 'lr': learning_rate, 'weight_decay':weight_decay},
+            {'params':model.salgan.parameters() , 'lr': args.lr, 'weight_decay':weight_decay},
             {'params':model.alpha, 'lr': 0.1}])
         if LEARN_ALPHA_ONLY:
             optimizer = torch.optim.Adam([{'params':[model.alpha]}], 0.1)
 
 
 
-    if pretrained_model == None:
+    if args.pt_model != False:
         # In truth it's not None, we default to SalGAN or SalBCE (JuanJo's)weights
         # By setting strict to False we allow the model to load only the matching layers' weights
         if SALGAN_WEIGHTS == 'model_weights/gen_model.pt':
@@ -172,23 +169,26 @@ def main(params = params):
         start_epoch = 1
 
     else:
-
         # Load an entire pretrained model
-        checkpoint = load_weights(model, pretrained_model)
+        checkpoint = load_weights(model, args.pt_model)
         model.load_state_dict(checkpoint, strict=False)
-        start_epoch = torch.load(pretrained_model, map_location='cpu')['epoch']
-        #optimizer.load_state_dict(torch.load(pretrained_model, map_location='cpu')['optimizer'])
+        start_epoch = torch.load(args.pt_model, map_location='cpu')['epoch']
+        #optimizer.load_state_dict(torch.load(args.pt_model, map_location='cpu')['optimizer'])
 
         print("Model loaded, commencing training from epoch {}".format(start_epoch))
 
-    if PROCESS == 'parallel':
-        model = nn.DataParallel(model).cuda()
-    elif PROCESS == 'gpu':
-        model = model.cuda()
-    else:
-        pass
-    cudnn.benchmark = True #https://discuss.pytorch.org/t/what-does-torch-backends-cudnn-benchmark-do/5936
-    criterion = criterion.cuda()
+    dtype = torch.FloatTensor
+    if args.use_gpu == 'parallel' or args.use_gpu == 'gpu':
+        assert torch.cuda.is_available(), \
+            "CUDA is not available in your machine"
+
+        if args.use_gpu == 'parallel':
+            model = nn.DataParallel(model).cuda()
+        elif args.use_gpu == 'gpu':
+            model = model.cuda()
+        dtype = torch.cuda.FloatTensor
+        cudnn.benchmark = True #https://discuss.pytorch.org/t/what-does-torch-backends-cudnn-benchmark-do/5936
+        criterion = criterion.cuda()
     # =================================================
     # ================== Training =====================
 
@@ -199,37 +199,37 @@ def main(params = params):
     print("Training started at : {}".format(starting_time))
 
     n_iter = 0
-    #if "EMA" in NEW_MODEL:
+    #if "EMA" in args.new_model:
     #    print("Alpha value started at: {}".format(model.alpha))
 
-    for epoch in range(start_epoch, epochs+1):
+    for epoch in range(start_epoch, args.epochs+1):
 
         try:
             #adjust_learning_rate(optimizer, epoch, decay_rate) #Didn't use this after all
             # train for one epoch
-            train_loss, n_iter, optimizer = train(train_loader, model, criterion, optimizer, epoch, n_iter)
+            train_loss, n_iter, optimizer = train(train_loader, model, criterion, optimizer, epoch, n_iter, args.use_gpu, args.double_ema, args.thaw, temporal, dtype)
 
-            print("Epoch {}/{} done with train loss {}\n".format(epoch, epochs, train_loss))
+            print("Epoch {}/{} done with train loss {}\n".format(epoch, args.epochs, train_loss))
 
-            if VAL_PERC > 0:
+            if args.val_perc > 0:
                 print("Running validation..")
-                val_loss = validate(val_loader, model, criterion, epoch)
+                val_loss = validate(val_loader, model, criterion, epoch, temporal, dtype)
                 print("Validation loss: {}".format(val_loss))
 
             if epoch % plot_every == 0:
                 train_losses.append(train_loss.cpu())
-                if VAL_PERC > 0:
+                if args.val_perc > 0:
                     val_losses.append(val_loss.cpu())
 
             torch.save({
                 'epoch': epoch + 1,
                 'state_dict': model.cpu().state_dict(),
                 'optimizer' : optimizer.state_dict()
-                }, NEW_MODEL)
+                }, args.new_model+".pt")
 
-            if PROCESS == 'parallel':
+            if args.use_gpu == 'parallel':
                 model = nn.DataParallel(model).cuda()
-            elif PROCESS == 'gpu':
+            elif args.use_gpu == 'gpu':
                 model = model.cuda()
             else:
                 pass
@@ -239,7 +239,7 @@ def main(params = params):
 
                 print("Training on whole set")
                 train_loss, n_iter, optimizer = train(whole_loader, model, criterion, optimizer, epoch, n_iter)
-                print("Epoch {}/{} done with train loss {}".format(epoch, epochs, train_loss))
+                print("Epoch {}/{} done with train loss {}".format(epoch, args.epochs, train_loss))
             """
 
         except RuntimeError:
@@ -247,8 +247,8 @@ def main(params = params):
             epoch = epoch - 1
             break
 
-    print("Training of {} started at {} and finished at : {} \n Now saving..".format(NEW_MODEL, starting_time, datetime.datetime.now().replace(microsecond=0)))
-    #if "EMA" in NEW_MODEL:
+    print("Training of {} started at {} and finished at : {} \n Now saving..".format(args.new_model, starting_time, datetime.datetime.now().replace(microsecond=0)))
+    #if "EMA" in args.new_model:
     #    print("Alpha value tuned to: {}".format(model.alpha))
     # ===================== #
     # ======  Saving ====== #
@@ -258,22 +258,22 @@ def main(params = params):
         'epoch': epoch + 1,
         'state_dict': model.cpu().state_dict(),
         'optimizer' : optimizer.state_dict()
-        }, NEW_MODEL)
+        }, args.new_model+".pt")
 
     """
     hyperparameters = {
         'momentum' : momentum,
         'weight_decay' : weight_decay,
-        'learning_rate' : learning_rate,
+        'args.lr' : learning_rate,
         'decay_rate' : decay_rate,
-        'epochs' : epochs,
+        'args.epochs' : args.epochs,
         'batch_size' : batch_size
     }
     """
 
-    if VAL_PERC > 0:
+    if args.val_perc > 0:
         to_plot = {
-            'epoch_ticks': list(range(start_epoch, epochs+1, plot_every)),
+            'epoch_ticks': list(range(start_epoch, args.epochs+1, plot_every)),
             'train_losses': train_losses,
             'val_losses': val_losses
             }
@@ -291,9 +291,9 @@ def adjust_learning_rate(optimizer, epoch, decay_rate=0.1):
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
-def load_weights(model, pretrained_model, device='cpu'):
+def load_weights(model, pt_model, device='cpu'):
     # Load stored model:
-    temp = torch.load(pretrained_model, map_location=device)['state_dict']
+    temp = torch.load(pt_model, map_location=device)['state_dict']
     # Because of dataparallel there is contradiction in the name of the keys so we need to remove part of the string in the keys:.
     from collections import OrderedDict
     checkpoint = OrderedDict()
@@ -310,14 +310,14 @@ def repackage_hidden(h):
     else:
         return tuple(repackage_hidden(v) for v in h)
 
-def train(train_loader, model, criterion, optimizer, epoch, n_iter):
+def train(train_loader, model, criterion, optimizer, epoch, n_iter, use_gpu, double, thaw, temporal, dtype):
 
 
     # Switch to train mode
     model.train()
 
-    if TEMPORAL and FREEZE:
-        if PROCESS == 'parallel':
+    if temporal and thaw:
+        if use_gpu == 'parallel':
             # Unfreeze layers depending on epoch number
             optimizer = model.module.thaw(epoch, optimizer) #When you wrap a model with DataParallel, the model.module can be seen as the model before it’s wrapped.
 
@@ -358,7 +358,7 @@ def train(train_loader, model, criterion, optimizer, epoch, n_iter):
             clip = Variable(clip.type(dtype).transpose(0,1))
             gtruths = Variable(gtruths.type(dtype).transpose(0,1))
 
-            if TEMPORAL and not DOUBLE:
+            if temporal and not double:
                 #print(clip.size()) #works! torch.Size([5, 1, 1, 360, 640])
                 loss = 0
                 for idx in range(clip.size()[0]):
@@ -397,7 +397,7 @@ def train(train_loader, model, criterion, optimizer, epoch, n_iter):
                 # Repackage to avoid backpropagating further through time
                 state = repackage_hidden(state)
 
-            elif TEMPORAL and DOUBLE:
+            elif temporal and double:
                 if state == None:
                     state = (None, None)
                 loss = 0
@@ -476,7 +476,7 @@ def train(train_loader, model, criterion, optimizer, epoch, n_iter):
     return (mean(video_losses), n_iter, optimizer)
 
 
-def validate(val_loader, model, criterion, epoch):
+def validate(val_loader, model, criterion, epoch, temporal, dtype):
 
     # switch to evaluate mode
     model.eval()
@@ -495,7 +495,7 @@ def validate(val_loader, model, criterion, epoch):
             for idx in range(clip.size()[0]):
                 #print(clip[idx].size()) needs unsqueeze
                 # Compute output
-                if TEMPORAL:
+                if temporal:
                     state, saliency_map = model.forward(clip[idx], state)
                 else:
                     saliency_map = model.forward(clip[idx])
@@ -509,7 +509,7 @@ def validate(val_loader, model, criterion, epoch):
                 # Compute loss
                 loss = loss + criterion(saliency_map, gtruths[idx])
 
-            if TEMPORAL:
+            if temporal:
                 state = repackage_hidden(state)
 
             # Keep score
@@ -520,7 +520,9 @@ def validate(val_loader, model, criterion, epoch):
     return(mean(video_losses))
 
 if __name__ == '__main__':
-    main()
+    parser = get_training_parser()
+    args = parser.parse_args()
+    main(args)
 
     #utils.save_image(saliency_map.data.cpu(), "test.png")
 

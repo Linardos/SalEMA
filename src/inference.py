@@ -55,13 +55,13 @@ def main(args):
     # ================ Data Loading ===================
 
     #Expect Error if either validation size or train size is 1
-    if args.dataset == "DHF1K":
+    if args.dataset == "DHF1K" or args.dataset == "other":
         #print(args.start)
         #print(args.end)
         print("Commencing inference for dataset {}".format(args.dataset))
         dataset = DHF1K_frames(
-            frames_path = args.src,
-            gt_path = None,
+            root_path = args.src,
+            load_gt = False,
             starting_video = int(args.start),
             number_of_videos = int(args.end),
             clip_length = CLIP_LENGTH,

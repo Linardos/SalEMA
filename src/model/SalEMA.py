@@ -31,11 +31,13 @@ class SalEMA(nn.Module):
         self.dropout = dropout
         self.residual = residual
         self.use_gpu = use_gpu
-        self.alpha = nn.Parameter(torch.Tensor([0.25]))
-        print("Initial alpha set to: {}".format(self.alpha))
-        #self.alpha = alpha
+        if alpha == None:
+            self.alpha = nn.Parameter(torch.Tensor([0.25]))
+            print("Initial alpha set to: {}".format(self.alpha))
+        else:
+            self.alpha = alpha
+        assert(self.alpha<=1 and self.alpha>=0)
         self.ema_loc = ema_loc # 30 = bottleneck
-        assert(alpha<=1 and alpha>=0)
 
         # Create encoder based on VGG16 architecture
         original_vgg16 = vgg16()
@@ -117,7 +119,7 @@ class SalEMA(nn.Module):
         return current_state, x #x is a saliency map at this point
 
 
-class SalEMA2(nn.Module):
+class SalGAN_EMA2(nn.Module):
     """
     In this model, we pick two Convolutional layers from decoder and encoder  and apply EMA
     The smaller the alpha, the less each newly added frame will impact the outcome. This way the temporal information becomes most relevant.
@@ -129,7 +131,7 @@ class SalEMA2(nn.Module):
         self.alpha = alpha
         self.ema_loc_1 = ema_loc_1 # 30 = bottleneck
         self.ema_loc_2 = ema_loc_2 # 30 = bottleneck
-        assert(alpha<=1 and alpha>=0)
+        assert(self.alpha<=1 and self.alpha>=0)
 
         # Create encoder based on VGG16 architecture
         original_vgg16 = vgg16()
