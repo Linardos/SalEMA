@@ -2,7 +2,7 @@ import cv2
 import os
 import datetime
 import numpy as np
-from model import SalGANmore, SalEMA
+from model import SalCLSTM, SalEMA
 from args import get_inference_parser
 import pickle
 import torch
@@ -89,7 +89,7 @@ def main(args):
     # input size is 1 since we have grayscale images
     if 'SalCLSTM30' in args.pt_model:
 
-        model = SalGANmore.SalCLSTM30(seed_init=65, freeze=False, residual=False)
+        model = SalCLSTM.SalCLSTM30(seed_init=65, freeze=False, residual=False)
 
         load_model(args.pt_model, model)
         print("Pre-trained model SalCLSTM30 loaded succesfully")
@@ -98,7 +98,7 @@ def main(args):
 
     elif 'SalGAN' in args.pt_model:
 
-        model = SalGANmore.SalGAN()
+        model = SalCLSTM.SalGAN()
 
         load_model(args.pt_model, model)
         print("Pre-trained model tuned SalGAN loaded succesfully")
@@ -122,7 +122,7 @@ def main(args):
     elif args.pt_model == 'model_weights/salgan_salicon.pt':
 
         if EMA_LOC == None:
-            model = SalGANmore.SalGAN()
+            model = SalCLSTM.SalGAN()
             TEMPORAL = False
             print("Pre-trained model SalBCE loaded succesfully.")
         else:
@@ -133,8 +133,8 @@ def main(args):
         model.salgan.load_state_dict(torch.load(args.pt_model)['state_dict'])
 
 
-    elif args.pt_model == '/imatge/lpanagiotis/work/SalGANmore/src/model_weights/gen_model.pt':
-        model = SalGANmore.SalGAN()
+    elif args.pt_model == '/imatge/lpanagiotis/work/SalCLSTM/src/model_weights/gen_model.pt':
+        model = SalCLSTM.SalGAN()
         model.salgan.load_state_dict(torch.load(args.pt_model))
         print("Pre-trained model vanilla SalGAN loaded succesfully")
 
