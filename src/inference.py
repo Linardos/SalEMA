@@ -11,7 +11,7 @@ import torch.backends.cudnn as cudnn
 from torch import nn
 from torch.utils import data
 from torch.autograd import Variable
-from data_loader import DHF1K_frames, Ego_frames, Hollywood_frames
+from data_loader import DHF1K_frames, Hollywood_frames
 
 
 """
