@@ -6,7 +6,7 @@ def get_inference_parser():
 
     parser.add_argument('-use_gpu', dest='use_gpu', default=True, help="Boolean value, set to True if you are using CUDA.")
     parser.add_argument('-dst', dest='dst', default="/imatge/lpanagiotis/work/DHF1K", help="Add root path to output predictions to.")
-    parser.add_argument('-src', dest='src', default="/imatge/lpanagiotis/work/DHF1K/frames", help="Add root path to your dataset.")
+    parser.add_argument('-src', dest='src', default="/imatge/lpanagiotis/work/DHF1K", help="Add root path to your dataset.")
 
     # Dataset
     parser.add_argument('-dataset', dest='dataset', default='DHF1K', help="Name of the dataset to be inferred. These can be 'DHF1K', 'Hollywood-2', 'UCF-sports'. If you wish to use your own dataset input 'other'.")
@@ -18,7 +18,7 @@ def get_inference_parser():
     #parser.add_argument('-new_model', dest='new_model', default='SalEMA', help="Input name to use on newly trained model (Don't include extension or number for the recurrence placement; they will be added automatically")
 
     # Args for EMA
-    parser.add_argument('-alpha', dest='alpha', default=0.1, type=float, help='Input value for alpha.')
+    parser.add_argument('-alpha', dest='alpha', default=None, type=float, help='Input value for alpha.')
     parser.add_argument('-ema_loc', dest='ema_loc', default=30, type=int, help='Input number of layer to place EMA on')
     parser.add_argument('-dropout', dest='dropout', default=True, help='Boolean value set to True if model includes dropout.')
     parser.add_argument('-residual', dest='residual', default=False, help='Boolean value set to True if model includes residual connection on SalEMA')

@@ -28,7 +28,7 @@ You may use our pretrained model for inference on either of the 3 datasets: DHF1
 To perform inference on DHF1K validation set:
 
 ```shell
-python inference.py -dataset=DHF1K -pt_model=SalEMA30.pt -start=600 -end=700 -dst=/path/to/output -src=/path/to/DHF1K/frames
+python inference.py -dataset=DHF1K -pt_model=SalEMA30.pt -start=600 -end=700 -dst=/path/to/output -src=/path/to/DHF1K
 ```
 
 To perform inference on Hollywood-2 or UCF-sports test set (because of the way the dataset is structured, it's convenient to use the same path for dst and src):
