@@ -11,7 +11,7 @@ import torch.backends.cudnn as cudnn
 from torch import nn
 from torch.utils import data
 from torch.autograd import Variable
-from data_loader import DHF1K_frames, Hollywood_frames
+from data_loader import DHF1K_frames, Hollywood_frames, DAVIS_frames
 
 
 """
@@ -43,19 +43,17 @@ params = {'batch_size': 1,
 
 def main(args):
 
-    if args.dataset == "DHF1K" or args.dataset == "other":
-        dst = os.path.join(args.dst, "{}_predictions".format(args.pt_model.replace(".pt", "")))
-    elif args.dataset == "Hollywood-2" or args.dataset == "UCF-sports":
+    if args.dataset == "Hollywood-2" or args.dataset == "UCF-sports":
         dst = os.path.join(args.dst, "{}/testing".format(args.dataset)) #Hollywood or UCF-sports
     else:
-        print("Dataset not recognized. If you want to input your own dataset use input '-dataset=other' and specify the path '-src /path/to/mydataset'.")
+        dst = os.path.join(args.dst, "{}_predictions".format(args.pt_model.replace(".pt", "")))
     print("Output directory {}".format(dst))
 
     # =================================================
     # ================ Data Loading ===================
 
     #Expect Error if either validation size or train size is 1
-    if args.dataset == "DHF1K" or args.dataset == "other":
+    if args.dataset == "DHF1K":
         #print(args.start)
         #print(args.end)
         print("Commencing inference for dataset {}".format(args.dataset))
@@ -76,6 +74,14 @@ def main(args):
             clip_length = CLIP_LENGTH,
             resolution = frame_size)
         video_name_list = dataset.video_names() #match an index to the sample video name
+    elif args.dataset == "DAVIS" or args.dataset == "other":
+        print("Commencing inference for dataset {}".format(args.dataset))
+        dataset = DAVIS_frames(
+            root_path = args.src,
+            clip_length = CLIP_LENGTH,
+            resolution = frame_size)
+        video_name_list = dataset.video_names() #match an index to the sample video name
+
 
     print("Size of test set is {}".format(len(dataset)))
 
@@ -209,7 +215,7 @@ def main(args):
                     state = repackage_hidden(state)
             print("Video {} done".format(i+int((args.start))))
 
-        elif args.dataset == "Hollywood-2" or "UCF-sports":
+        elif args.dataset == "Hollywood-2" or args.dataset == "UCF-sports":
 
             video_dst = os.path.join(dst, video_name_list[i], '{}_predictions'.format(args.pt_model.replace(".pt", "")))
             print("Destination: {}".format(video_dst))
@@ -218,33 +224,52 @@ def main(args):
 
             for j, (clip, _) in enumerate(video):
                 clip = Variable(clip.type(dtype).transpose(0,1), requires_grad=False)
-                if args.double_ema:
-                    if state == None:
-                        state = (None, None)
-                    for idx in range(clip.size()[0]):
-                        # Compute output
-                        state, saliency_map = model.forward(input_ = clip[idx], prev_state_1 = state[0], prev_state_2 = state[1])
+                for idx in range(clip.size()[0]):
+                    # Compute output
+                    if TEMPORAL:
+                        state, saliency_map = model.forward(input_ = clip[idx], prev_state = state)
+                    else:
+                        saliency_map = model.forward(input_ = clip[idx])
 
-                        saliency_map = saliency_map.squeeze(0) # Target is 3 dimensional (grayscale image)
+                    count+=1
+                    saliency_map = saliency_map.squeeze(0)
 
-                        post_process_saliency_map = (saliency_map-torch.min(saliency_map))/(torch.max(saliency_map)-torch.min(saliency_map))
-                        utils.save_image(post_process_saliency_map, os.path.join(video_dst, "{}.png".format(str(count).zfill(4))))
+                    post_process_saliency_map = (saliency_map-torch.min(saliency_map))/(torch.max(saliency_map)-torch.min(saliency_map))
+                    utils.save_image(post_process_saliency_map, os.path.join(video_dst, "{}{}.png".format(video_name_list[i][:-1], str(count).zfill(5))))
+                    if count == 1:
+                        print("The final destination is {}. Cancel now if this is incorrect".format(os.path.join(video_dst, "{}{}.png".format(video_name_list[i][:-1], str(count).zfill(5)))))
 
-                else:
-                    for idx in range(clip.size()[0]):
-                        # Compute output
-                        if TEMPORAL:
-                            state, saliency_map = model.forward(input_ = clip[idx], prev_state = state)
-                        else:
-                            saliency_map = model.forward(input_ = clip[idx])
+                if TEMPORAL:
+                    state = repackage_hidden(state)
+            print("Video {} done".format(i+int(args.start)))
 
-                        count+=1
-                        saliency_map = saliency_map.squeeze(0)
+        elif args.dataset == "DAVIS" or args.dataset == "other":
 
-                        post_process_saliency_map = (saliency_map-torch.min(saliency_map))/(torch.max(saliency_map)-torch.min(saliency_map))
-                        utils.save_image(post_process_saliency_map, os.path.join(video_dst, "{}{}.png".format(video_name_list[i][:-1], str(count).zfill(5))))
-                        if count == 1:
-                            print("The final destination is {}. Cancel now if this is incorrect".format(os.path.join(video_dst, "{}{}.png".format(video_name_list[i][:-1], str(count).zfill(5)))))
+            video_dst = os.path.join(dst, video_name_list[i])
+            # if "shooting" in video_dst:
+            #     # CUDA error: out of memory is encountered whenever inference reaches that vid.
+            #     continue
+            print("Destination: {}".format(video_dst))
+            if not os.path.exists(video_dst):
+                os.mkdir(video_dst)
+
+            for j, (clip, _) in enumerate(video):
+                clip = Variable(clip.type(dtype).transpose(0,1), requires_grad=False)
+
+                for idx in range(clip.size()[0]):
+                    # Compute output
+                    if TEMPORAL:
+                        state, saliency_map = model.forward(input_ = clip[idx], prev_state = state)
+                    else:
+                        saliency_map = model.forward(input_ = clip[idx])
+
+                    count+=1
+                    saliency_map = saliency_map.squeeze(0)
+
+                    post_process_saliency_map = (saliency_map-torch.min(saliency_map))/(torch.max(saliency_map)-torch.min(saliency_map))
+                    utils.save_image(post_process_saliency_map, os.path.join(video_dst, "{}.jpg".format(str(count).zfill(5))))
+                    if count == 1:
+                        print("The final destination is {}. Cancel now if this is incorrect".format(os.path.join(video_dst, "{}.jpg".format(str(count).zfill(5)))))
 
                 if TEMPORAL:
                     state = repackage_hidden(state)

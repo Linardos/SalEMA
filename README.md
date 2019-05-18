@@ -41,11 +41,13 @@ python inference.py -dataset=Hollywood-2 -pt_model=SalEMA30.pt -dst=/path/to/Hol
 python inference.py -dataset=UCF-sports -pt_model=SalEMA30.pt -dst=/path/to/UCF-sports/testing -src=/path/to/UCF-sports/testing
 ```
 
-To perform inference on your own dataset make sure to follow the same structure as DHF1K (numbered folders followed by numbered frames):
+To perform inference on your own dataset make sure to follow a simple folder structure (one superfolder given as root at the input, which includes folders of frames) and use the tag "other":
 
 ```shell
-python inference.py -dataset=other -pt_model=SalEMA30.pt -dst=/path/to/output -src=/path/to/your_dataset/frames
+python inference.py -dataset=other -pt_model=SalEMA30.pt -dst=/path/to/output -src=/path/to/superfolder/frames
 ```
+
+If your dataset follows a more quirky structure you might need to manipulate the data_loader source code.
 
 ## Training
 

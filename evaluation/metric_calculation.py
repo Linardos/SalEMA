@@ -22,14 +22,14 @@ SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SalBCE_predictions"
 SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SalEMA30D_H_predictions"
 SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SalGANmid_H_predictions"
 SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SalEMA30A_predictions"
-SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SalEMA30Afinal_predictions"
 SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SalEMA30Afinal_H_predictions"
+SM_DIR = "/imatge/lpanagiotis/work/DHF1K/SalEMA30Afinal700_predictions"
 
 RESCALE_GTs = False
 print("Now evaluating on {}".format(SM_DIR))
 continue_calculations = False
 
-STARTING_VIDEO = 601 #Using the last 100 seen videos to test a hypothesis
+STARTING_VIDEO = 601
 NUMBER_OF_VIDEOS = 700
 
 if continue_calculations:

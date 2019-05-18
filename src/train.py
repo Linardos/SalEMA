@@ -18,9 +18,6 @@ from data_loader import DHF1K_frames, Hollywood_frames
 """
 Be sure to check the name of args.new_model before running
 """
-dataset_name = "UCF-sports"
-dataset_name = "DHF1K"
-dataset_name = "Hollywood-2"
 frame_size = (192, 256) # original shape is (360, 640, 3)
 #learning_rate = 0.0000001 # Added another 0 for hollywood
 decay_rate = 0.1
@@ -29,10 +26,8 @@ weight_decay = 1e-4
 #epochs = 7+1 #+3+2
 plot_every = 1
 clip_length = 10
-starting_video = 1
-number_of_videos = 600 #600 #Reset to 600
 
-temporal = True
+#temporal = True
 #RESIDUAL = False
 #args.dropout = True
 SALGAN_WEIGHTS = 'model_weights/salgan_salicon.pt' #JuanJo's weights
@@ -65,7 +60,7 @@ def main(args, params = params):
     # ================ Data Loading ===================
 
     #Expect Error if either validation size or train size is 1
-    if args.dataset == "DHF1K" or args.dataset == "other":
+    if args.dataset == "DHF1K":
         print("Commencing training on dataset {}".format(args.dataset))
         train_set = DHF1K_frames(
             root_path = args.src,
