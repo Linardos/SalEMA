@@ -7,6 +7,10 @@ Qualitative results:
 
 You may download a video (DHF1K sample) generated from images with overlayed maps produced by SalEMA [here](https://github.com/Linardos/SalEMA/blob/gh-pages/videos/664salema.avi?raw=true)
 
+
+## Publication
+Find the pre-print version of our work on [arXiv](https://arxiv.org/abs/1907.01869).
+
 ## Model
 
 ![TemporalEDmodel](https://raw.githubusercontent.com/Linardos/SalEMA/gh-pages/TemporalEDmodel.jpg)
