@@ -11,6 +11,10 @@ Find the pre-print version of our work on [arXiv](https://arxiv.org/abs/1907.018
 
 * Download our best configuration of the SalEMA model [here (364MB)](https://imatge.upc.edu/web/sites/default/files/projects/saliency/public/VideoSalGAN-II/SalEMA30.pt)
 
+Sample video (click to be redirected to youtube):
+
+[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/JNe6A7dszPw/0.jpg)](https://www.youtube.com/watch?v=JNe6A7dszPw)
+
 ## Installation
 
 - Clone the repo:
