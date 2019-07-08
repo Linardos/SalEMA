@@ -2,8 +2,7 @@
 
 SalEMA is a video saliency prediction network. It utilizes a moving average of convolutional states to produce state of the art results. The architecture has been trained on [DHF1K](https://github.com/wenguanwang/DHF1K). 
 
-Qualitative results:
-![QResults](https://raw.githubusercontent.com/Linardos/SalEMA/gh-pages/QResultsEMA.png)
+A sample video with corresponding predictions and ground truths overlayed:
 
 [![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/JNe6A7dszPw/0.jpg)](https://www.youtube.com/watch?v=JNe6A7dszPw)
 
