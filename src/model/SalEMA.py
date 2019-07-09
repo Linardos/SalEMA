@@ -35,7 +35,7 @@ class SalEMA(nn.Module):
             self.alpha = nn.Parameter(torch.Tensor([0.25]))
             print("Initial alpha set to: {}".format(self.alpha))
         else:
-            self.alpha = alpha
+            self.alpha = torch.Tensor([alpha])
         assert(self.alpha<=1 and self.alpha>=0)
         self.ema_loc = ema_loc # 30 = bottleneck
 
