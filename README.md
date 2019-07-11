@@ -31,7 +31,8 @@ You may also want to refer to our publication with the more human-friendly Chica
 Qualitative results:
 ![QResults](https://raw.githubusercontent.com/Linardos/SalEMA/gh-pages/QResultsEMA.png)
 
-You may download a video (DHF1K sample) generated from images with overlayed maps produced by SalEMA [here](https://github.com/Linardos/SalEMA/blob/gh-pages/videos/664salema.avi?raw=true)
+Sample video (click to be redirected to youtube):
+[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/JNe6A7dszPw/0.jpg)](https://www.youtube.com/watch?v=JNe6A7dszPw)
 
 ## Model
 
