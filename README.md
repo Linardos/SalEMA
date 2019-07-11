@@ -1,6 +1,32 @@
 # SalEMA
 
-SalEMA is a video saliency prediction network. It utilizes a moving average of convolutional states to produce state of the art results. The architecture has been trained on [DHF1K](https://github.com/wenguanwang/DHF1K). 
+SalEMA is a video saliency prediction network. It utilizes a moving average of convolutional states to produce state of the art results according to [this benchmark](https://mmcheng.net/videosal/) on DHF1K, Hollywwod-2 and UCF Sports (July 2019). The model has been trained on the [DHF1K dataset](https://github.com/wenguanwang/DHF1K). 
+
+# Abstract
+
+This paper investigates modifying an existing neural network architecture for static saliency prediction using two types of recurrences that integrate information from the temporal domain. The first modification is the addition of a ConvLSTM within the architecture, while the second is a conceptually simple exponential moving average of an internal convolutional state. We use weights pre-trained on the SALICON dataset and fine-tune our model on DHF1K. Our results show that both modifications achieve state-of-the-art results and produce similar saliency maps. 
+
+## Publication
+
+Find the extended pre-print version of our work on [arXiv](https://arxiv.org/abs/1907.01869). 
+
+Please cite with the following Bibtex code:
+
+```
+@InProceedings{Linardos2019,
+author = {Linardos, Panagiotis and Mohedano, Eva and Nieto, Juan Jose and McGuinness, Kevin and Giro-i-Nieto, Xavier and O'Connor, Noel E.},
+title = {Temporal Recurrences for Video Saliency Prediction},
+booktitle = {British Machine Vision Conference (BMVC)},
+month = {September},
+year = {2019}
+}
+```
+
+You may also want to refer to our publication with the more human-friendly Chicago style:
+
+*Panagiotis Linardos, Eva Mohedano, Juan Jose Nieto, Kevin McGuinness, Xavier Giro-i-Nieto and Noel E. O'Connor. "Temporal Recurrences for Video Saliency Prediction." BMVC 2019.*
+
+## Results
 
 Qualitative results:
 ![QResults](https://raw.githubusercontent.com/Linardos/SalEMA/gh-pages/QResultsEMA.png)
