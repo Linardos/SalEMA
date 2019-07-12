@@ -154,7 +154,7 @@ def main(args):
     if args.use_gpu:
         assert torch.cuda.is_available(), \
             "CUDA is not available in your machine"
-        cudnn.benchmark = True #https://discuss.pytorch.org/t/what-does-torch-backends-cudnn-benchmark-do/5936
+        cudnn.benchmark = False #Would cause overhead during inference.
         model = model.cuda()
         dtype = torch.cuda.FloatTensor
     # ==================================================
