@@ -35,23 +35,23 @@ You may use our pretrained model for inference on either of the 3 datasets: DHF1
 To perform inference on DHF1K validation set:
 
 ```shell
-python inference.py -dataset=DHF1K -pt_model=SalEMA30.pt -start=600 -end=700 -dst=/path/to/output -src=/path/to/DHF1K
+python inference.py -dataset=DHF1K -pt_model=SalEMA30.pt -alpha=0.1 -start=600 -end=700 -dst=/path/to/output -src=/path/to/DHF1K
 ```
 
 To perform inference on Hollywood-2 or UCF-sports test set (because of the way the dataset is structured, it's convenient to use the same path for dst and src):
 
 ```shell
-python inference.py -dataset=Hollywood-2 -pt_model=SalEMA30.pt -dst=/path/to/Hollywood-2/testing -src=/path/to/Hollywood-2/testing
+python inference.py -dataset=Hollywood-2 -pt_model=SalEMA30.pt -alpha=0.1 -dst=/path/to/Hollywood-2/testing -src=/path/to/Hollywood-2/testing
 ```
 
 ```shell
-python inference.py -dataset=UCF-sports -pt_model=SalEMA30.pt -dst=/path/to/UCF-sports/testing -src=/path/to/UCF-sports/testing
+python inference.py -dataset=UCF-sports -pt_model=SalEMA30.pt -alpha=0.1 -dst=/path/to/UCF-sports/testing -src=/path/to/UCF-sports/testing
 ```
 
 To perform inference on your own dataset make sure to follow a simple folder structure (one superfolder given as root at the input, which includes folders of frames) and use the tag "other":
 
 ```shell
-python inference.py -dataset=other -pt_model=SalEMA30.pt -dst=/path/to/output -src=/path/to/superfolder/frames
+python inference.py -dataset=other -alpha=0.1 -pt_model=SalEMA30.pt -dst=/path/to/output -src=/path/to/superfolder/frames
 ```
 
 If your dataset follows a more quirky structure you might need to manipulate the data_loader source code.
