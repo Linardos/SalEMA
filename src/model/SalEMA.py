@@ -105,9 +105,11 @@ class SalEMA(nn.Module):
         if prev_state is None:
             current_state = self.salgan[self.ema_loc](x) #Initially don't apply alpha as there is no prev state we will consistently have bad saliency maps at the start if we were to do so.
         else:
-            #current_state = sigmoid(self.alpha)*self.salgan[self.ema_loc](x)+(1-sigmoid(self.alpha))*prev_state
-            current_state = sigmoid(self.alpha).cuda()*self.salgan[self.ema_loc](x)+(1-sigmoid(self.alpha).cuda())*prev_state
-
+            if self.use_gpu == True:
+                current_state = sigmoid(self.alpha).cuda()*self.salgan[self.ema_loc](x)+(1-sigmoid(self.alpha).cuda())*prev_state
+            else:
+                current_state = sigmoid(self.alpha)*self.salgan[self.ema_loc](x)+(1-sigmoid(self.alpha))*prev_state
+                
         if self.residual == True:
             x = current_state+residual
         else:
