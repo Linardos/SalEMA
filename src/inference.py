@@ -267,7 +267,7 @@ def main(args):
                     saliency_map = saliency_map.squeeze(0)
 
                     post_process_saliency_map = (saliency_map-torch.min(saliency_map))/(torch.max(saliency_map)-torch.min(saliency_map))
-                    utils.save_image(post_process_saliency_map, os.path.join(video_dst, "{}.jpg".format(str(count).zfill(5))))
+                    utils.save_image(post_process_saliency_map, os.path.join(video_dst, "{}.png".format(str(count).zfill(5))))
                     if count == 1:
                         print("The final destination is {}. Cancel now if this is incorrect".format(os.path.join(video_dst, "{}.jpg".format(str(count).zfill(5)))))
 
