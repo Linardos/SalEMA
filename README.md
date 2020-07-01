@@ -3,8 +3,7 @@
 SalEMA is a video saliency prediction network. It utilizes a moving average of convolutional states to produce state of the art results. The architecture has been trained on DHF1K.
 
 ## Publication
-Find the pre-print version of our work on [arXiv](https://arxiv.org/abs/1907.01869) or check our friendly summary on [medium](https://medium.com/@linardos.akis/teaching-machines-where-to-look-on-videos-c7a685e2b136)
-If this project has been helpful to your work, please consider citing us:
+Find the pre-print version of our work on [arXiv](https://arxiv.org/abs/1907.01869) or check our friendly summary on [medium](https://medium.com/@linardos.akis/teaching-machines-where-to-look-on-videos-c7a685e2b136). Also, if this project has been helpful to your work, please consider citing us:
 ```
 @article{linardos2019simple,
   title={Simple vs complex temporal recurrences for video saliency prediction},
