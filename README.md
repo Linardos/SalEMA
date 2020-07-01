@@ -4,6 +4,16 @@ SalEMA is a video saliency prediction network. It utilizes a moving average of c
 
 ## Publication
 Find the pre-print version of our work on [arXiv](https://arxiv.org/abs/1907.01869) or check our friendly summary on [medium](https://medium.com/@linardos.akis/teaching-machines-where-to-look-on-videos-c7a685e2b136)
+If this project has been helpful to your work, please consider citing us:
+```
+@article{linardos2019simple,
+  title={Simple vs complex temporal recurrences for video saliency prediction},
+  author={Linardos, Panagiotis and Mohedano, Eva and Nieto, Juan Jose and O'Connor, Noel E and Giro-i-Nieto, Xavier and McGuinness, Kevin},
+  journal={arXiv preprint arXiv:1907.01869},
+  year={2019}
+}
+```
+
 
 ## Model
 
