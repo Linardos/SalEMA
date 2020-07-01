@@ -20,7 +20,7 @@ def get_inference_parser():
     # Args for EMA
     parser.add_argument('-alpha', dest='alpha', default=None, type=float, help='Input value for alpha.')
     parser.add_argument('-ema_loc', dest='ema_loc', default=30, type=int, help='Input number of layer to place EMA on')
-    parser.add_argument('-dropout', dest='dropout', default=True, type=bool, help='Boolean value set to True if model includes dropout.')
+    parser.add_argument('-dropout', dest='dropout', default=False, type=bool, help='Boolean value set to True if model includes dropout.')
     parser.add_argument('-residual', dest='residual', default=False, type=bool, help='Boolean value set to True if model includes residual connection on SalEMA')
     parser.add_argument('-double_ema', dest='double_ema', default=False, type=bool, help='Boolean value set to True to activate two EMAs simultaneously')
 
