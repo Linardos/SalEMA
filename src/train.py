@@ -152,7 +152,7 @@ def main(args, params = params):
 
 
 
-    if args.pt_model != False:
+    if args.pt_model == None:
         # In truth it's not None, we default to SalGAN or SalBCE (JuanJo's)weights
         # By setting strict to False we allow the model to load only the matching layers' weights
         if SALGAN_WEIGHTS == 'model_weights/gen_model.pt':
