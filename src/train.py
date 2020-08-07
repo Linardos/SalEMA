@@ -122,7 +122,7 @@ def main(args, params = params):
             model = SalEMA.SalEMA2(alpha=0.3, ema_loc_1=args.ema_loc, ema_loc_2=args.double_ema)
             print("Initialized {}".format(args.new_model))
         else:
-            model = SalEMA.SalEMA(alpha=None, residual=args.residual, dropout= args.dropout, ema_loc=args.ema_loc)
+            model = SalEMA.SalEMA(alpha=args.alpha, residual=args.residual, dropout= args.dropout, ema_loc=args.ema_loc)
             print("Initialized {} with residual set to {} and dropout set to {}".format(args.new_model, args.residual, args.dropout))
     else:
         print("Your model was not recognized, check the name of the model and try again.")
@@ -144,9 +144,14 @@ def main(args, params = params):
 
     else:
         #optimizer = torch.optim.Adam(model.parameters(), args.lr, betas=(0.9, 0.999), eps=1e-08, weight_decay=weight_decay)
-        optimizer = torch.optim.Adam([
+        if args.alpha is None:
+            optimizer = torch.optim.Adam([
             {'params':model.salgan.parameters() , 'lr': args.lr, 'weight_decay':weight_decay},
             {'params':model.alpha, 'lr': 0.1}])
+        else:
+            optimizer = torch.optim.Adam([
+            {'params':model.salgan.parameters() , 'lr': args.lr, 'weight_decay':weight_decay}])
+                    
         if LEARN_ALPHA_ONLY:
             optimizer = torch.optim.Adam([{'params':[model.alpha]}], 0.1)
 
