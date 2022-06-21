@@ -1,6 +1,6 @@
 joblib==0.13.2
 matplotlib==3.0.3
-numpy==1.16.2
+numpy==1.22.0
 opencv-python==4.0.0.21
 Pillow==8.1.1
 torch==1.0.1.post2
